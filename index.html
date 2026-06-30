@@ -340,8 +340,13 @@ async function fbSendMessage(fromUid, toUid, fromName, text, listingId) {
 async function fbGetConversations(uid) {
   const snap = await fbDb.collection('conversations')
     .where('participants', 'array-contains', uid)
-    .orderBy('lastMessageAt', 'desc').limit(20).get();
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    .limit(20).get();
+  const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return docs.sort((a, b) => {
+    const aTime = a.lastMessageAt?.toMillis?.() || 0;
+    const bTime = b.lastMessageAt?.toMillis?.() || 0;
+    return bTime - aTime;
+  });
 }
 
 async function fbGetMessages(convId) {
@@ -633,7 +638,7 @@ function ToastContainer() {
 
 // ==================== NAVBAR ====================
 function Navbar() {
-  const { theme, toggleTheme, navigate, isLoggedIn, handleLogout, addToast, savedListings, messages } = useApp();
+  const { theme, toggleTheme, navigate, isLoggedIn, handleLogout, addToast, savedListings, messages, currentUser } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
