@@ -2217,6 +2217,7 @@ function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
 
   if (!isLoggedIn) { navigate('login'); return null; }
+  if (currentUser?.role !== 'ADMIN') { navigate('home'); return null; }
 
   const tabs = ['overview','users','listings','reports','categories'];
   const adminStats = [
