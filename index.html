@@ -208,7 +208,14 @@ const TESTIMONIALS = [
 let fbApp = null, fbAuth = null, fbDb = null;
 
 function getStoredConfig() {
-  try { return JSON.parse(localStorage.getItem('mh_firebase_cfg') || 'null'); } catch { return null; }
+  return {
+    apiKey: "AIzaSyD7G6jUcnpG4bjRNa22biQLEbJbQ79mKMs",
+    authDomain: "market-ddc34.firebaseapp.com",
+    projectId: "market-ddc34",
+    storageBucket: "market-ddc34.firebasestorage.app",
+    messagingSenderId: "560541942974",
+    appId: "1:560541942974:web:8824c48ef43892dda78aef"
+  };
 }
 
 function initFirebase(cfg) {
