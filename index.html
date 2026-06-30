@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -173,7 +174,7 @@ const LISTINGS = [];
 const TESTIMONIALS = [];
 
 // ==================== FIREBASE SERVICE ====================
-let fbApp = null, fbAuth = null, fbDb = null;
+let fbApp = null, fbAuth = null, fbDb = null, fbStorage = null;
 
 function getStoredConfig() {
   return {
@@ -191,6 +192,7 @@ function initFirebase(cfg) {
   fbApp = firebase.initializeApp(cfg);
   fbAuth = firebase.auth();
   fbDb = firebase.firestore();
+  fbStorage = firebase.storage();
   localStorage.setItem('mh_firebase_cfg', JSON.stringify(cfg));
 }
 
@@ -198,7 +200,7 @@ function isFirebaseReady() { return !!fbApp; }
 
 function resetFirebase() {
   if (fbApp) { try { fbApp.delete(); } catch {} }
-  fbApp = null; fbAuth = null; fbDb = null;
+  fbApp = null; fbAuth = null; fbDb = null; fbStorage = null;
   localStorage.removeItem('mh_firebase_cfg');
 }
 
@@ -227,6 +229,18 @@ async function fbGetUser(uid) {
 
 async function fbUpdateUser(uid, data) {
   await fbDb.collection('users').doc(uid).update(data);
+}
+
+// Storage helpers
+async function fbUploadImage(file, uid) {
+  const safeName = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
+  const ref = fbStorage.ref().child(`listings/${uid}/${safeName}`);
+  const snap = await ref.put(file);
+  return await snap.ref.getDownloadURL();
+}
+
+async function fbUploadImages(files, uid) {
+  return Promise.all(files.map(f => fbUploadImage(f, uid)));
 }
 
 // Listings CRUD
@@ -1422,15 +1436,22 @@ function CreateListingPage() {
     setImages(prev => [...prev, ...urls].slice(0, 8));
     setImageFiles(prev => [...prev, ...files].slice(0, 8));
   };
-  const removeImage = (i) => setImages(prev => prev.filter((_, idx) => idx !== i));
+  const removeImage = (i) => {
+    setImages(prev => prev.filter((_, idx) => idx !== i));
+    setImageFiles(prev => prev.filter((_, idx) => idx !== i));
+  };
+
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   const handleSubmit = async () => {
     if (!form.title || !form.price || !form.category) { addToast('Please fill in required fields', 'error'); return; }
+    if (imageFiles.length === 0) { addToast('Please add at least one photo', 'error'); return; }
     setPublishing(true);
     try {
-      // For images, we'll use the first object URL as the cover image
-      // In production, you'd upload to Firebase Storage and get URLs back
-      const coverImage = images.length > 0 ? images[0] : 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop';
+      setUploadingImages(true);
+      const uploadedUrls = await fbUploadImages(imageFiles, currentUser.uid);
+      setUploadingImages(false);
+      const coverImage = uploadedUrls[0];
       await fbCreateListing({
         title: form.title,
         description: form.description,
@@ -1438,7 +1459,7 @@ function CreateListingPage() {
         category: form.category,
         location: form.location || 'Unknown',
         image: coverImage,
-        images: images,
+        images: uploadedUrls,
         condition: 'Brand New',
         tags: form.tags ? form.tags.split(',').map(t => t.trim()) : [],
         contact: form.contact,
@@ -1451,8 +1472,9 @@ function CreateListingPage() {
       navigate('seller-dashboard');
     } catch(e) {
       console.error(e);
-      addToast('Failed to publish listing. Check your Firestore rules.', 'error');
+      addToast('Failed to publish listing. Check your Firestore/Storage rules.', 'error');
     }
+    setUploadingImages(false);
     setPublishing(false);
   };
 
@@ -1587,7 +1609,7 @@ function CreateListingPage() {
           </div>
           <div className="flex gap-3">
             <button onClick={() => setStep(2)} className="flex-1 py-3 border border-ink-0/10 dark:border-surface-1/10 rounded-xl font-semibold">Back</button>
-            <button onClick={handleSubmit} disabled={publishing} className="flex-1 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50">{publishing ? 'Publishing...' : 'Publish Listing'}</button>
+            <button onClick={handleSubmit} disabled={publishing} className="flex-1 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50">{uploadingImages ? 'Uploading photos...' : publishing ? 'Publishing...' : 'Publish Listing'}</button>
           </div>
         </div>
       )}
