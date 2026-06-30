@@ -236,16 +236,26 @@ async function fbCreateListing(data) {
     userId: fbAuth.currentUser.uid,
     sellerName: fbAuth.currentUser.displayName || 'User',
     views: 0, favorites: 0, featured: false,
+    status: 'pending', // pending | approved | rejected — set by admin review
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
   return ref.id;
+}
+
+async function fbModerateListing(id, status, reason) {
+  await fbDb.collection('listings').doc(id).update({
+    status,
+    moderationReason: reason || null,
+    moderatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
 }
 
 async function fbGetListings(filters = {}) {
   let q = fbDb.collection('listings').orderBy('createdAt', 'desc');
   if (filters.category) q = q.where('category', '==', filters.category);
   if (filters.userId) q = q.where('userId', '==', filters.userId);
-  const snap = await q.limit(50).get();
+  if (filters.status) q = q.where('status', '==', filters.status);
+  const snap = await q.limit(filters.limit || 50).get();
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
@@ -501,18 +511,40 @@ function AppProvider({ children }) {
     return () => unsub();
   }, [fbReady]);
 
-  // Load all listings from Firestore
+  // Load all PUBLIC (approved) listings from Firestore
   const reloadListings = useCallback(async () => {
     if (!isFirebaseReady()) return;
     setListingsLoading(true);
     try {
-      const data = await fbGetListings();
+      const data = await fbGetListings({ status: 'approved' });
       setListings(data);
     } catch(e) { console.error('Failed to load listings', e); }
     setListingsLoading(false);
   }, []);
 
   useEffect(() => { if (fbReady) reloadListings(); }, [fbReady, reloadListings]);
+
+  // Load the current seller's own listings, any status (for Seller Dashboard)
+  const [myListings, setMyListings] = useState([]);
+  const reloadMyListings = useCallback(async () => {
+    if (!isFirebaseReady() || !currentUser?.uid) { setMyListings([]); return; }
+    try {
+      const data = await fbGetListings({ userId: currentUser.uid });
+      setMyListings(data);
+    } catch(e) { console.error('Failed to load my listings', e); }
+  }, [currentUser?.uid]);
+
+  useEffect(() => { if (fbReady && currentUser?.uid) reloadMyListings(); }, [fbReady, currentUser?.uid, reloadMyListings]);
+
+  // Load ALL listings for admin moderation queue (admin-only read per security rules)
+  const [pendingListings, setPendingListings] = useState([]);
+  const reloadPendingListings = useCallback(async () => {
+    if (!isFirebaseReady() || currentUser?.role !== 'ADMIN') { setPendingListings([]); return; }
+    try {
+      const data = await fbGetListings({ status: 'pending', limit: 100 });
+      setPendingListings(data);
+    } catch(e) { console.error('Failed to load pending listings', e); }
+  }, [currentUser?.role]);
 
   const reloadCategories = useCallback(async () => {
     if (!isFirebaseReady()) return;
@@ -571,7 +603,8 @@ function AppProvider({ children }) {
       savedListings, toggleSave, isLoggedIn, setIsLoggedIn, currentUser, setCurrentUser,
       addToast, messages, setMessages, chatMessages, setChatMessages,
       listings, listingsLoading, reloadListings, activeConvId, setActiveConvId,
-      handleLogout, fbReady, categories, reloadCategories
+      handleLogout, fbReady, categories, reloadCategories,
+      myListings, reloadMyListings, pendingListings, reloadPendingListings
     }}>
       {children}
     </AppContext.Provider>
@@ -1357,7 +1390,7 @@ function ListingDetailPage() {
 
 // ==================== CREATE LISTING ====================
 function CreateListingPage() {
-  const { navigate, addToast, isLoggedIn, currentUser, reloadListings, categories } = useApp();
+  const { navigate, addToast, isLoggedIn, currentUser, reloadMyListings, categories } = useApp();
   const [images, setImages] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
   const [dragOver, setDragOver] = useState(false);
@@ -1413,8 +1446,8 @@ function CreateListingPage() {
         verified: true,
         posted: 'Just now'
       });
-      await reloadListings();
-      addToast('Listing published successfully!');
+      await reloadMyListings();
+      addToast('Listing submitted! It will go live once approved by an admin.');
       navigate('seller-dashboard');
     } catch(e) {
       console.error(e);
@@ -1981,13 +2014,11 @@ function SavedPage() {
 
 // ==================== SELLER DASHBOARD ====================
 function SellerDashboardPage() {
-  const { navigate, isLoggedIn, currentUser, listings, reloadListings, addToast } = useApp();
+  const { navigate, isLoggedIn, currentUser, myListings, reloadMyListings, addToast } = useApp();
   if (!isLoggedIn) { navigate('login'); return null; }
 
-  const myListings = listings.filter(l => l.userId === currentUser?.uid);
-
   const handleDelete = async (id) => {
-    try { await fbDeleteListing(id); await reloadListings(); addToast('Listing deleted'); }
+    try { await fbDeleteListing(id); await reloadMyListings(); addToast('Listing deleted'); }
     catch(e) { addToast('Failed to delete', 'error'); }
   };
   const statsData = [
@@ -2043,14 +2074,24 @@ function SellerDashboardPage() {
       <div className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 overflow-hidden">
         <div className="p-6 border-b border-ink-0/5 dark:border-surface-1/5 flex items-center justify-between">
           <h3 className="font-semibold text-ink-0 dark:text-surface-1">My Listings</h3>
-          <span className="text-sm text-ink-4 dark:text-surface-4">{myListings.length} active</span>
+          <span className="text-sm text-ink-4 dark:text-surface-4">{myListings.length} total</span>
         </div>
         <div className="divide-y divide-ink-0/5 dark:divide-surface-1/5">
           {myListings.map(l => (
             <div key={l.id} className="flex items-center gap-4 p-4 hover:bg-surface-2/30 dark:hover:bg-ink-2/30 transition-colors">
               <img src={l.image} alt={l.title} className="w-16 h-12 rounded-lg object-cover flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-ink-0 dark:text-surface-1 truncate">{l.title}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm text-ink-0 dark:text-surface-1 truncate">{l.title}</p>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize flex-shrink-0 ${
+                    l.status === 'approved' ? 'bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400' :
+                    l.status === 'rejected' ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400' :
+                    'bg-yellow-50 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400'
+                  }`}>{l.status || 'pending'}</span>
+                </div>
+                {l.status === 'rejected' && l.moderationReason && (
+                  <p className="text-xs text-red-500 mt-0.5">Reason: {l.moderationReason}</p>
+                )}
                 <p className="text-xs text-ink-4 dark:text-surface-4 flex items-center gap-2 mt-0.5">
                   <span>${l.price.toLocaleString()}</span>
                   <span>•</span>
@@ -2213,17 +2254,29 @@ function CategoriesManager() {
 
 // ==================== ADMIN DASHBOARD ====================
 function AdminDashboardPage() {
-  const { isLoggedIn, navigate, listings, categories, reloadCategories, currentUser } = useApp();
+  const { isLoggedIn, navigate, listings, categories, reloadCategories, currentUser, pendingListings, reloadPendingListings, addToast } = useApp();
   const [activeTab, setActiveTab] = useState('overview');
 
   if (!isLoggedIn) { navigate('login'); return null; }
   if (currentUser?.role !== 'ADMIN') { navigate('home'); return null; }
 
+  useEffect(() => { reloadPendingListings(); }, [reloadPendingListings]);
+
+  const handleApprove = async (id) => {
+    try { await fbModerateListing(id, 'approved'); await reloadPendingListings(); addToast('Listing approved'); }
+    catch(e) { addToast('Failed to approve listing', 'error'); }
+  };
+  const handleReject = async (id) => {
+    const reason = window.prompt('Reason for rejection (shown to seller, optional):') || '';
+    try { await fbModerateListing(id, 'rejected', reason); await reloadPendingListings(); addToast('Listing rejected'); }
+    catch(e) { addToast('Failed to reject listing', 'error'); }
+  };
+
   const tabs = ['overview','users','listings','reports','categories'];
   const adminStats = [
     { label: 'Total Users', value: '48,291', change: '+2.4%', icon: <Icons.Users /> },
     { label: 'Active Listings', value: '12,483', change: '+5.7%', icon: <Icons.Package /> },
-    { label: 'Pending Reports', value: '23', change: '-12%', icon: <Icons.Flag /> },
+    { label: 'Pending Reports', value: String(pendingListings.length), change: '', icon: <Icons.Flag /> },
     { label: 'Revenue (MTD)', value: '$124,800', change: '+18.3%', icon: <Icons.DollarSign /> },
   ];
   const recentUsers = [
@@ -2233,7 +2286,6 @@ function AdminDashboardPage() {
     { name: 'Carlos Rivera', email: 'carlos@example.com', status: 'suspended', joined: '2 days ago' },
     { name: 'Lisa Park', email: 'lisa@example.com', status: 'active', joined: '3 days ago' },
   ];
-  const pendingListings = (listings.length > 0 ? listings : LISTINGS).slice(0, 3).map((l, i) => ({ ...l, status: ['pending','flagged','pending'][i % 3] }));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
@@ -2311,16 +2363,18 @@ function AdminDashboardPage() {
                 <h3 className="font-semibold">Pending Moderation</h3>
               </div>
               <div className="divide-y divide-ink-0/5 dark:divide-surface-1/5">
-                {pendingListings.map(l => (
+                {pendingListings.length === 0 ? (
+                  <p className="p-4 text-sm text-ink-4 dark:text-surface-4">Nothing waiting for review 🎉</p>
+                ) : pendingListings.slice(0, 5).map(l => (
                   <div key={l.id} className="flex items-center gap-3 p-4">
                     <img src={l.image} alt="" className="w-12 h-9 rounded-lg object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{l.title}</p>
-                      <p className="text-xs text-ink-4 dark:text-surface-4">{l.seller || l.sellerName || 'User'} • ${Number(l.price).toLocaleString()}</p>
+                      <p className="text-xs text-ink-4 dark:text-surface-4">{l.sellerName || 'User'} • ${Number(l.price).toLocaleString()}</p>
                     </div>
                     <div className="flex gap-1">
-                      <button className="p-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 text-green-600 hover:bg-green-100"><Icons.Check /></button>
-                      <button className="p-1.5 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 hover:bg-red-100"><Icons.X /></button>
+                      <button onClick={() => handleApprove(l.id)} className="p-1.5 rounded-lg bg-green-50 dark:bg-green-950/30 text-green-600 hover:bg-green-100"><Icons.Check /></button>
+                      <button onClick={() => handleReject(l.id)} className="p-1.5 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 hover:bg-red-100"><Icons.X /></button>
                     </div>
                   </div>
                 ))}
@@ -2358,10 +2412,32 @@ function AdminDashboardPage() {
       )}
 
       {activeTab === 'listings' && (
-        <div className="animate-fadeIn">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(listings.length > 0 ? listings : LISTINGS).slice(0, 6).map((l, i) => <ListingCard key={l.id} listing={l} index={i} />)}
+        <div className="animate-fadeIn bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 overflow-hidden">
+          <div className="p-5 border-b border-ink-0/5 dark:border-surface-1/5 flex items-center justify-between">
+            <h3 className="font-semibold">Listings Awaiting Review</h3>
+            <span className="text-sm text-ink-4 dark:text-surface-4">{pendingListings.length} pending</span>
           </div>
+          {pendingListings.length === 0 ? (
+            <p className="p-6 text-sm text-ink-4 dark:text-surface-4">No listings waiting for review.</p>
+          ) : (
+            <div className="divide-y divide-ink-0/5 dark:divide-surface-1/5">
+              {pendingListings.map(l => (
+                <div key={l.id} className="flex items-center gap-4 p-4">
+                  <img src={l.image} alt={l.title} className="w-20 h-14 rounded-lg object-cover flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{l.title}</p>
+                    <p className="text-xs text-ink-4 dark:text-surface-4 mt-0.5">{l.sellerName || 'User'} • ${Number(l.price).toLocaleString()} • {categories.find(c => c.id === l.category)?.name || l.category}</p>
+                    {l.description && <p className="text-xs text-ink-5 mt-1 line-clamp-1">{l.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={() => navigate('listing', { listing: l })} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-ink-0/10 dark:border-surface-1/10 hover:bg-surface-2/50 dark:hover:bg-ink-2/50">View</button>
+                    <button onClick={() => handleApprove(l.id)} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-50 dark:bg-green-950/30 text-green-600 hover:bg-green-100">Approve</button>
+                    <button onClick={() => handleReject(l.id)} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 hover:bg-red-100">Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
