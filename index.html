@@ -475,6 +475,7 @@ function AppProvider({ children }) {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
+  const [profileUserId, setProfileUserId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState([]);
   const [savedListings, setSavedListings] = useState([]);
@@ -607,6 +608,7 @@ function AppProvider({ children }) {
   const navigate = useCallback((page, data = {}) => {
     setCurrentPage(page);
     if (data.category) setSelectedCategory(data.category);
+    if (page === 'profile') setProfileUserId(data.userId || null);
     if (data.listing) {
       setSelectedListing(data.listing);
       if (isFirebaseReady() && data.listing.id) fbIncrementViews(data.listing.id).catch(()=>{});
@@ -628,7 +630,8 @@ function AppProvider({ children }) {
       addToast, messages, setMessages, chatMessages, setChatMessages,
       listings, listingsLoading, reloadListings, activeConvId, setActiveConvId,
       handleLogout, fbReady, categories, reloadCategories,
-      myListings, reloadMyListings, pendingListings, reloadPendingListings
+      myListings, reloadMyListings, pendingListings, reloadPendingListings,
+      profileUserId
     }}>
       {children}
     </AppContext.Provider>
@@ -849,7 +852,10 @@ function ListingCard({ listing, index = 0 }) {
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-ink-2 dark:text-surface-3">{sellerName}</span>
+              <span
+                onClick={(e) => { e.stopPropagation(); listing.userId && navigate('profile', { userId: listing.userId }); }}
+                className="text-sm font-medium text-ink-2 dark:text-surface-3 hover:text-brand-600 dark:hover:text-brand-400 hover:underline transition-colors"
+              >{sellerName}</span>
               {listing.verified && <Icons.Verified />}
             </div>
             <div className="flex items-center gap-1 text-sm">
@@ -1333,14 +1339,17 @@ function ListingDetailPage() {
 
             {/* Seller Card */}
             <div className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <img src={`https://i.pravatar.cc/60?u=${sellerName}`} alt={sellerName} className="w-12 h-12 rounded-full object-cover" />
+              <div
+                onClick={() => l.userId && navigate('profile', { userId: l.userId })}
+                className={`flex items-center gap-3 mb-4 ${l.userId ? 'cursor-pointer group' : ''}`}
+              >
+                <img src={`https://i.pravatar.cc/60?u=${l.userId || sellerName}`} alt={sellerName} className="w-12 h-12 rounded-full object-cover" />
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <p className="font-semibold text-ink-0 dark:text-surface-1">{sellerName}</p>
+                    <p className="font-semibold text-ink-0 dark:text-surface-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 group-hover:underline transition-colors">{sellerName}</p>
                     {l.verified && <Icons.Verified />}
                   </div>
-                  <p className="text-xs text-ink-4 dark:text-surface-4">Member since 2024</p>
+                  <p className="text-xs text-ink-4 dark:text-surface-4">{l.userId ? 'View profile' : 'Member since 2024'}</p>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 mb-4 text-center">
@@ -2502,10 +2511,57 @@ function AdminDashboardPage() {
 
 // ==================== PROFILE ====================
 function ProfilePage() {
-  const { navigate, isLoggedIn, currentUser, savedListings, listings } = useApp();
-  if (!isLoggedIn) { navigate('login'); return null; }
+  const { navigate, isLoggedIn, currentUser, savedListings, categories, profileUserId, addToast } = useApp();
 
-  const myListings = listings.filter(l => l.userId === currentUser?.uid).slice(0, 4);
+  const targetUid = profileUserId || currentUser?.uid;
+  const isOwnProfile = isLoggedIn && targetUid === currentUser?.uid;
+
+  if (!targetUid) { navigate('login'); return null; }
+
+  const [profileUser, setProfileUser] = useState(isOwnProfile ? currentUser : null);
+  const [sellerListings, setSellerListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const canSeeAllStatuses = isOwnProfile || currentUser?.role === 'ADMIN';
+        const [userData, listingsData] = await Promise.all([
+          fbGetUser(targetUid),
+          fbGetListings(canSeeAllStatuses ? { userId: targetUid, limit: 200 } : { userId: targetUid, status: 'approved', limit: 200 })
+        ]);
+        if (cancelled) return;
+        setProfileUser(userData);
+        setSellerListings(listingsData);
+      } catch(e) {
+        console.error(e);
+        if (!cancelled) addToast('Failed to load profile', 'error');
+      }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [targetUid, isOwnProfile, currentUser?.role]);
+
+  // Group listings by category, preserving category order, skipping empty ones
+  const grouped = useMemo(() => {
+    const byCat = {};
+    sellerListings.forEach(l => {
+      const key = l.category || 'uncategorized';
+      if (!byCat[key]) byCat[key] = [];
+      byCat[key].push(l);
+    });
+    return categories
+      .map(c => ({ cat: c, items: byCat[c.id] || [] }))
+      .filter(g => g.items.length > 0);
+  }, [sellerListings, categories]);
+
+  const approvedCount = sellerListings.filter(l => l.status === 'approved').length;
+  const displayName = profileUser?.username || profileUser?.name || 'User';
+  const memberSince = profileUser?.createdAt?.seconds
+    ? new Date(profileUser.createdAt.seconds * 1000).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    : null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-fadeIn">
@@ -2515,40 +2571,62 @@ function ProfilePage() {
           <div className="absolute inset-0 hero-mesh opacity-50" />
         </div>
         <div className="px-6 pb-6 -mt-12 relative">
-          <img src={currentUser?.avatar || 'https://i.pravatar.cc/120?img=8'} alt="Profile" className="w-24 h-24 rounded-2xl border-4 border-surface-0 dark:border-ink-1 object-cover shadow-lg" />
+          <img src={profileUser?.avatar || `https://i.pravatar.cc/120?u=${targetUid}`} alt="Profile" className="w-24 h-24 rounded-2xl border-4 border-surface-0 dark:border-ink-1 object-cover shadow-lg" />
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mt-4">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-display text-2xl font-bold text-ink-0 dark:text-surface-1">{currentUser?.name || 'User'}</h1>
-                <Icons.Verified />
+                <h1 className="font-display text-2xl font-bold text-ink-0 dark:text-surface-1">{displayName}</h1>
+                {profileUser?.role === 'ADMIN' && <Icons.Verified />}
               </div>
-              <p className="text-ink-4 dark:text-surface-4 text-sm mt-0.5">Member since January 2024 • San Francisco, CA</p>
+              <p className="text-ink-4 dark:text-surface-4 text-sm mt-0.5">{memberSince ? `Member since ${memberSince}` : 'Marketplace member'}</p>
               <div className="flex items-center gap-4 mt-2 text-sm">
-                <span className="flex items-center gap-1"><Icons.Star /> <strong>4.9</strong> rating</span>
-                <span>24 listings</span>
-                <span>{savedListings.length} saved</span>
+                <span>{approvedCount} listing{approvedCount === 1 ? '' : 's'}</span>
+                {isOwnProfile && <span>{savedListings.length} saved</span>}
               </div>
             </div>
-            <button onClick={() => navigate('settings')} className="px-4 py-2 rounded-xl border border-ink-0/10 dark:border-surface-1/10 text-sm font-medium hover:border-brand-300 dark:hover:border-brand-700 transition-colors">Edit Profile</button>
+            {isOwnProfile && (
+              <button onClick={() => navigate('settings')} className="px-4 py-2 rounded-xl border border-ink-0/10 dark:border-surface-1/10 text-sm font-medium hover:border-brand-300 dark:hover:border-brand-700 transition-colors">Edit Profile</button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {[{l:'Total Listings',v:myListings.length},{l:'Saved Items',v:savedListings.length},{l:'Member Since',v: currentUser?.createdAt ? new Date(currentUser.createdAt?.seconds*1000).getFullYear() : '—'}].map(s => (
-          <div key={s.l} className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-5 text-center">
-            <p className="font-display text-2xl font-bold text-ink-0 dark:text-surface-1">{s.v}</p>
-            <p className="text-sm text-ink-4 dark:text-surface-4">{s.l}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Listings */}
-      <h2 className="font-display text-2xl font-bold text-ink-0 dark:text-surface-1 mb-4">Listings by this seller</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {myListings.map((l, i) => <ListingCard key={l.id} listing={l} index={i} />)}
-      </div>
+      {/* Listings grouped by category */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : grouped.length === 0 ? (
+        <div className="text-center py-16 text-ink-4 dark:text-surface-4">
+          <div className="text-4xl mb-3">📦</div>
+          <p className="font-medium">{isOwnProfile ? "You haven't posted anything yet" : "No listings yet"}</p>
+          {isOwnProfile && <button onClick={() => navigate('create')} className="mt-4 px-5 py-2.5 bg-brand-500 text-white text-sm font-semibold rounded-xl hover:bg-brand-600 transition-colors">Post your first listing</button>}
+        </div>
+      ) : (
+        <div className="space-y-10">
+          {grouped.map(({ cat, items }) => (
+            <div key={cat.id}>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xl">{cat.icon}</span>
+                <h2 className="font-display text-xl font-bold text-ink-0 dark:text-surface-1">{cat.name}</h2>
+                <span className="text-sm text-ink-4 dark:text-surface-4">({items.length})</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {items.map((l, i) => (
+                  <div key={l.id} className="relative">
+                    {isOwnProfile && l.status !== 'approved' && (
+                      <span className={`absolute top-2 left-2 z-10 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
+                        l.status === 'rejected' ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'
+                      }`}>{l.status}</span>
+                    )}
+                    <ListingCard listing={l} index={i} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
