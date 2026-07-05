@@ -12,7 +12,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -174,7 +173,7 @@ const LISTINGS = [];
 const TESTIMONIALS = [];
 
 // ==================== FIREBASE SERVICE ====================
-let fbApp = null, fbAuth = null, fbDb = null, fbStorage = null;
+let fbApp = null, fbAuth = null, fbDb = null;
 
 function getStoredConfig() {
   return {
@@ -192,7 +191,6 @@ function initFirebase(cfg) {
   fbApp = firebase.initializeApp(cfg);
   fbAuth = firebase.auth();
   fbDb = firebase.firestore();
-  fbStorage = firebase.storage();
   localStorage.setItem('mh_firebase_cfg', JSON.stringify(cfg));
 }
 
@@ -200,7 +198,7 @@ function isFirebaseReady() { return !!fbApp; }
 
 function resetFirebase() {
   if (fbApp) { try { fbApp.delete(); } catch {} }
-  fbApp = null; fbAuth = null; fbDb = null; fbStorage = null;
+  fbApp = null; fbAuth = null; fbDb = null;
   localStorage.removeItem('mh_firebase_cfg');
 }
 
@@ -231,16 +229,28 @@ async function fbUpdateUser(uid, data) {
   await fbDb.collection('users').doc(uid).update(data);
 }
 
-// Storage helpers
-async function fbUploadImage(file, uid) {
-  const safeName = `${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
-  const ref = fbStorage.ref().child(`listings/${uid}/${safeName}`);
-  const snap = await ref.put(file);
-  return await snap.ref.getDownloadURL();
+// Image upload helpers (Cloudinary — unsigned upload preset)
+const CLOUDINARY_CLOUD_NAME = 'm7jo7brf';
+const CLOUDINARY_UPLOAD_PRESET = 'listings';
+
+async function fbUploadImage(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || 'Image upload failed');
+  }
+  const data = await res.json();
+  return data.secure_url;
 }
 
-async function fbUploadImages(files, uid) {
-  return Promise.all(files.map(f => fbUploadImage(f, uid)));
+async function fbUploadImages(files) {
+  return Promise.all(files.map(f => fbUploadImage(f)));
 }
 
 // Listings CRUD
@@ -1449,7 +1459,7 @@ function CreateListingPage() {
     setPublishing(true);
     try {
       setUploadingImages(true);
-      const uploadedUrls = await fbUploadImages(imageFiles, currentUser.uid);
+      const uploadedUrls = await fbUploadImages(imageFiles);
       setUploadingImages(false);
       const coverImage = uploadedUrls[0];
       await fbCreateListing({
