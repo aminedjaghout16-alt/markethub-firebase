@@ -172,6 +172,18 @@ const LISTINGS = [];
 
 const TESTIMONIALS = [];
 
+// ==================== OWNER-ONLY LOCK ====================
+// Only this exact Firebase UID can access Categories & Site Settings in the admin panel.
+// This is enforced for real in Firestore rules (server-side) — this constant just controls
+// whether the UI shows the option at all. Replace with your actual UID from
+// Firebase Console → Authentication → Users → "User UID" column.
+const OWNER_UID = 'REPLACE_WITH_YOUR_FIREBASE_UID';
+// Extra password prompt shown even to you, so a logged-in session left open on a shared
+// device still can't be used to change these without the password. This is NOT the real
+// security boundary (it's just a string in this file) — the Firestore rule tied to
+// OWNER_UID above is what actually stops other admins from writing these fields.
+const SUPER_ADMIN_PASSWORD = 'REPLACE_WITH_YOUR_PASSWORD';
+
 // ==================== FIREBASE SERVICE ====================
 let fbApp = null, fbAuth = null, fbDb = null;
 
@@ -266,6 +278,16 @@ async function fbCountListingsByStatus(status) {
 async function fbGetRecentUsers(limit = 5) {
   const snap = await fbDb.collection('users').orderBy('createdAt', 'desc').limit(limit).get();
   return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+}
+
+// Site settings (name, tagline, etc.) — owner-only writes enforced by Firestore rules
+async function fbGetSiteSettings() {
+  const doc = await fbDb.collection('settings').doc('site').get();
+  return doc.exists ? doc.data() : {};
+}
+
+async function fbUpdateSiteSettings(data) {
+  await fbDb.collection('settings').doc('site').set(data, { merge: true });
 }
 
 // Listings CRUD
@@ -596,6 +618,17 @@ function AppProvider({ children }) {
 
   useEffect(() => { if (fbReady) reloadCategories(); }, [fbReady, reloadCategories]);
 
+  const [siteSettings, setSiteSettings] = useState({});
+  const reloadSiteSettings = useCallback(async () => {
+    if (!isFirebaseReady()) return;
+    try {
+      const s = await fbGetSiteSettings();
+      setSiteSettings(s || {});
+    } catch(e) { console.error('Failed to load site settings', e); }
+  }, []);
+
+  useEffect(() => { if (fbReady) reloadSiteSettings(); }, [fbReady, reloadSiteSettings]);
+
   const toggleTheme = () => {
     setTheme(t => {
       const next = t === 'light' ? 'dark' : 'light';
@@ -646,7 +679,7 @@ function AppProvider({ children }) {
       listings, listingsLoading, reloadListings, activeConvId, setActiveConvId,
       handleLogout, fbReady, categories, reloadCategories,
       myListings, reloadMyListings, pendingListings, reloadPendingListings,
-      profileUserId
+      profileUserId, siteSettings, reloadSiteSettings
     }}>
       {children}
     </AppContext.Provider>
@@ -713,7 +746,7 @@ function ToastContainer() {
 
 // ==================== NAVBAR ====================
 function Navbar() {
-  const { theme, toggleTheme, navigate, isLoggedIn, handleLogout, addToast, savedListings, messages, currentUser } = useApp();
+  const { theme, toggleTheme, navigate, isLoggedIn, handleLogout, addToast, savedListings, messages, currentUser, siteSettings } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -732,9 +765,9 @@ function Navbar() {
           {/* Logo */}
           <button onClick={() => navigate('home')} className="flex items-center gap-2 group">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-500/20 group-hover:shadow-brand-500/40 transition-shadow">
-              <span className="text-white font-display font-bold text-lg">M</span>
+              <span className="text-white font-display font-bold text-lg">{(siteSettings.siteName || 'MarketHub')[0]}</span>
             </div>
-            <span className="font-display font-bold text-xl tracking-tight text-ink-0 dark:text-surface-1">MarketHub</span>
+            <span className="font-display font-bold text-xl tracking-tight text-ink-0 dark:text-surface-1">{siteSettings.siteName || 'MarketHub'}</span>
           </button>
 
           {/* Desktop Nav */}
@@ -1301,6 +1334,7 @@ function ListingDetailPage() {
 
   const handleContact = async () => {
     if (!isLoggedIn) { addToast('Please log in to contact sellers', 'error'); return; }
+    if (currentUser?.uid === l.userId) { addToast("You can't message yourself", 'error'); return; }
     if (!isFirebaseReady() || !msgText.trim()) return;
     try {
       const sellerUid = l.userId || 'unknown';
@@ -1372,9 +1406,15 @@ function ListingDetailPage() {
                 {l.priceLabel && <span className="text-lg font-normal text-ink-4">{l.priceLabel}</span>}
               </p>
               <div className="flex gap-2 mt-4">
-                <button onClick={() => setContactOpen(true)} className="flex-1 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20">
-                  Contact Seller
-                </button>
+                {currentUser?.uid === l.userId ? (
+                  <button disabled className="flex-1 py-3 bg-surface-2 dark:bg-ink-2 text-ink-4 dark:text-surface-4 font-semibold rounded-xl cursor-not-allowed">
+                    This is your listing
+                  </button>
+                ) : (
+                  <button onClick={() => setContactOpen(true)} className="flex-1 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20">
+                    Contact Seller
+                  </button>
+                )}
                 <button onClick={() => toggleSave(l.id)} className={`w-12 rounded-xl border flex items-center justify-center transition-all ${isSaved ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-300 text-brand-500' : 'border-ink-0/10 dark:border-surface-1/10 text-ink-4 hover:text-red-500'}`}>
                   <Icons.Heart filled={isSaved} />
                 </button>
@@ -2199,6 +2239,58 @@ function SellerDashboardPage() {
 }
 
 // ==================== CATEGORIES MANAGER ====================
+// ==================== OWNER-ONLY GATE ====================
+// Wraps sensitive admin sections (Categories, Site Settings). Two layers:
+// 1) Real: only currentUser.uid === OWNER_UID even gets past this component at all —
+//    and Firestore rules independently reject writes from any other UID regardless of this UI.
+// 2) Convenience: even you must enter a password each browser session before editing,
+//    in case a logged-in session is left open on a shared/public device.
+function SuperAdminGate({ children, label = 'this section' }) {
+  const { currentUser, addToast } = useApp();
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('mh_superadmin_unlocked') === 'true');
+  const [pwInput, setPwInput] = useState('');
+
+  const isOwner = currentUser?.uid === OWNER_UID;
+
+  if (!isOwner) {
+    return (
+      <div className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-10 text-center">
+        <div className="text-4xl mb-3">🔒</div>
+        <p className="font-semibold text-ink-0 dark:text-surface-1">Restricted</p>
+        <p className="text-sm text-ink-4 dark:text-surface-4 mt-1">Only the site owner can access {label}.</p>
+      </div>
+    );
+  }
+
+  if (!unlocked) {
+    const handleUnlock = (e) => {
+      e.preventDefault();
+      if (pwInput === SUPER_ADMIN_PASSWORD) {
+        sessionStorage.setItem('mh_superadmin_unlocked', 'true');
+        setUnlocked(true);
+        setPwInput('');
+      } else {
+        addToast('Incorrect password', 'error');
+      }
+    };
+    return (
+      <form onSubmit={handleUnlock} className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-10 text-center max-w-sm mx-auto">
+        <div className="text-4xl mb-3">🔐</div>
+        <p className="font-semibold text-ink-0 dark:text-surface-1 mb-1">Owner password required</p>
+        <p className="text-sm text-ink-4 dark:text-surface-4 mb-4">Enter your password to unlock {label} for this session.</p>
+        <input
+          type="password" autoFocus value={pwInput} onChange={e => setPwInput(e.target.value)}
+          placeholder="Password"
+          className="w-full px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 outline-none focus:border-brand-400 text-sm mb-3"
+        />
+        <button type="submit" className="w-full py-2.5 bg-brand-500 text-white font-semibold rounded-xl hover:bg-brand-600 transition-colors text-sm">Unlock</button>
+      </form>
+    );
+  }
+
+  return children;
+}
+
 function CategoriesManager() {
   const { categories, reloadCategories, addToast, currentUser } = useApp();
   const [form, setForm] = useState({ name: '', icon: '' });
@@ -2338,6 +2430,61 @@ function CategoriesManager() {
   );
 }
 
+// ==================== SITE SETTINGS MANAGER ====================
+function SiteSettingsManager() {
+  const { siteSettings, reloadSiteSettings, addToast } = useApp();
+  const [form, setForm] = useState({ siteName: '', tagline: '', supportEmail: '' });
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!loaded && siteSettings) {
+      setForm({
+        siteName: siteSettings.siteName || 'MarketHub',
+        tagline: siteSettings.tagline || 'The modern marketplace for buying, selling, and offering services across every niche.',
+        supportEmail: siteSettings.supportEmail || ''
+      });
+      setLoaded(true);
+    }
+  }, [siteSettings, loaded]);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await fbUpdateSiteSettings(form);
+      await reloadSiteSettings();
+      addToast('Site settings updated!');
+    } catch(e) { console.error(e); addToast('Failed to update site settings', 'error'); }
+    setLoading(false);
+  };
+
+  return (
+    <form onSubmit={handleSave} className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-6 max-w-xl space-y-5">
+      <h3 className="font-semibold text-lg text-ink-0 dark:text-surface-1">Site Settings</h3>
+      <div>
+        <label className="block font-semibold text-sm mb-2">Site Name</label>
+        <input type="text" value={form.siteName} onChange={e => setForm({...form, siteName: e.target.value})}
+          className="w-full px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 outline-none focus:border-brand-400 text-sm" />
+      </div>
+      <div>
+        <label className="block font-semibold text-sm mb-2">Tagline</label>
+        <textarea value={form.tagline} onChange={e => setForm({...form, tagline: e.target.value})} rows={2}
+          className="w-full px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 outline-none focus:border-brand-400 text-sm resize-none" />
+      </div>
+      <div>
+        <label className="block font-semibold text-sm mb-2">Support Email</label>
+        <input type="email" value={form.supportEmail} onChange={e => setForm({...form, supportEmail: e.target.value})} placeholder="support@yoursite.com"
+          className="w-full px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 outline-none focus:border-brand-400 text-sm" />
+      </div>
+      <button type="submit" disabled={loading}
+        className="px-6 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50 text-sm">
+        {loading ? 'Saving...' : 'Save Changes'}
+      </button>
+    </form>
+  );
+}
+
 // ==================== ADMIN DASHBOARD ====================
 function AdminDashboardPage() {
   const { isLoggedIn, navigate, listings, categories, reloadCategories, currentUser, pendingListings, reloadPendingListings, reloadListings, addToast } = useApp();
@@ -2359,7 +2506,7 @@ function AdminDashboardPage() {
     catch(e) { addToast('Failed to reject listing', 'error'); }
   };
 
-  const tabs = ['overview','users','listings','reports','categories'];
+  const tabs = ['overview','users','listings','reports','categories','site-settings'];
 
   const [realStats, setRealStats] = useState({ totalUsers: null, approvedListings: null, rejectedListings: null });
   const [recentUsers, setRecentUsers] = useState([]);
@@ -2420,8 +2567,9 @@ function AdminDashboardPage() {
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-surface-2/50 dark:bg-ink-1/50 rounded-xl mb-8 overflow-x-auto">
         {tabs.map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium capitalize whitespace-nowrap transition-all ${activeTab === tab ? 'bg-surface-0 dark:bg-ink-1 text-ink-0 dark:text-surface-1 shadow-sm' : 'text-ink-4 dark:text-surface-4 hover:text-ink-0 dark:hover:text-surface-2'}`}>
-            {tab}
+          <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${activeTab === tab ? 'bg-surface-0 dark:bg-ink-1 text-ink-0 dark:text-surface-1 shadow-sm' : 'text-ink-4 dark:text-surface-4 hover:text-ink-0 dark:hover:text-surface-2'}`}>
+            {(tab === 'categories' || tab === 'site-settings') && <span className="text-xs">🔒</span>}
+            {tab === 'site-settings' ? 'Site Settings' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
@@ -2562,7 +2710,15 @@ function AdminDashboardPage() {
       )}
 
       {activeTab === 'categories' && (
-        <CategoriesManager />
+        <SuperAdminGate label="Categories">
+          <CategoriesManager />
+        </SuperAdminGate>
+      )}
+
+      {activeTab === 'site-settings' && (
+        <SuperAdminGate label="Site Settings">
+          <SiteSettingsManager />
+        </SuperAdminGate>
       )}
     </div>
   );
@@ -2793,7 +2949,7 @@ function SettingsPage() {
 
 // ==================== FOOTER ====================
 function Footer() {
-  const { navigate } = useApp();
+  const { navigate, siteSettings } = useApp();
   return (
     <footer className="bg-ink-0 dark:bg-ink-1 border-t border-ink-0/5 dark:border-surface-1/5 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -2801,11 +2957,11 @@ function Footer() {
           <div className="col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
-                <span className="text-white font-display font-bold text-base">M</span>
+                <span className="text-white font-display font-bold text-base">{(siteSettings.siteName || 'MarketHub')[0]}</span>
               </div>
-              <span className="font-display font-bold text-lg text-surface-1">MarketHub</span>
+              <span className="font-display font-bold text-lg text-surface-1">{siteSettings.siteName || 'MarketHub'}</span>
             </div>
-            <p className="text-sm text-ink-5 leading-relaxed">The modern marketplace for buying, selling, and offering services across every niche.</p>
+            <p className="text-sm text-ink-5 leading-relaxed">{siteSettings.tagline || 'The modern marketplace for buying, selling, and offering services across every niche.'}</p>
           </div>
           {[
             { title: 'Marketplace', links: [['browse','Browse All'],['trending','Trending'],['featured','Featured'],['categories','Categories']] },
@@ -2831,7 +2987,7 @@ function Footer() {
           </div>
         </div>
         <div className="border-t border-ink-0/10 dark:border-surface-1/5 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-ink-5">&copy; 2026 MarketHub. All rights reserved.</p>
+          <p className="text-sm text-ink-5">&copy; 2026 {siteSettings.siteName || 'MarketHub'}. All rights reserved.</p>
           <div className="flex gap-6">
             {['Twitter','GitHub','LinkedIn'].map(s => (
               <button key={s} className="text-sm text-ink-5 hover:text-brand-400 transition-colors">{s}</button>
