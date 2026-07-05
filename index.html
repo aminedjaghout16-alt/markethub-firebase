@@ -1098,7 +1098,7 @@ function BrowsePage() {
     return list;
   }, [selectedCategory, searchQuery, priceRange, sortBy, allListings]);
 
-  const activeCategory = CATEGORIES.find(c => c.id === selectedCategory);
+  const activeCategory = categories.find(c => c.id === selectedCategory);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -2286,7 +2286,7 @@ function CategoriesManager() {
 
 // ==================== ADMIN DASHBOARD ====================
 function AdminDashboardPage() {
-  const { isLoggedIn, navigate, listings, categories, reloadCategories, currentUser, pendingListings, reloadPendingListings, addToast } = useApp();
+  const { isLoggedIn, navigate, listings, categories, reloadCategories, currentUser, pendingListings, reloadPendingListings, reloadListings, addToast } = useApp();
   const [activeTab, setActiveTab] = useState('overview');
 
   if (!isLoggedIn) { navigate('login'); return null; }
@@ -2295,12 +2295,12 @@ function AdminDashboardPage() {
   useEffect(() => { reloadPendingListings(); }, [reloadPendingListings]);
 
   const handleApprove = async (id) => {
-    try { await fbModerateListing(id, 'approved'); await reloadPendingListings(); addToast('Listing approved'); }
+    try { await fbModerateListing(id, 'approved'); await Promise.all([reloadPendingListings(), reloadListings()]); addToast('Listing approved'); }
     catch(e) { addToast('Failed to approve listing', 'error'); }
   };
   const handleReject = async (id) => {
     const reason = window.prompt('Reason for rejection (shown to seller, optional):') || '';
-    try { await fbModerateListing(id, 'rejected', reason); await reloadPendingListings(); addToast('Listing rejected'); }
+    try { await fbModerateListing(id, 'rejected', reason); await Promise.all([reloadPendingListings(), reloadListings()]); addToast('Listing rejected'); }
     catch(e) { addToast('Failed to reject listing', 'error'); }
   };
 
