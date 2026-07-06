@@ -426,6 +426,25 @@ async function fbGetMessages(convId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// Reports (flag a listing/seller)
+async function fbSubmitReport(report) {
+  const ref = await fbDb.collection('reports').add({
+    ...report,
+    status: 'open',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  return ref.id;
+}
+
+async function fbGetReports() {
+  const snap = await fbDb.collection('reports').orderBy('createdAt', 'desc').limit(100).get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function fbResolveReport(id, status) {
+  await fbDb.collection('reports').doc(id).update({ status });
+}
+
 // Categories CRUD
 async function fbGetCategories() {
   const snap = await fbDb.collection('categories').orderBy('order', 'asc').get();
@@ -1416,6 +1435,10 @@ function ListingDetailPage() {
   const { selectedListing, navigate, savedListings, toggleSave, isLoggedIn, addToast, handleLogout, listings, currentUser, categories } = useApp();
   const [contactOpen, setContactOpen] = useState(false);
   const [msgText, setMsgText] = useState('');
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const l = selectedListing;
 
   if (!l) return (
@@ -1442,6 +1465,30 @@ function ListingDetailPage() {
       setMsgText('');
       setContactOpen(false);
     } catch(e) { addToast('Failed to send message', 'error'); }
+  };
+
+  const handleReport = async () => {
+    if (!isLoggedIn) { addToast('Please log in to report a listing', 'error'); return; }
+    if (!reportReason) { addToast('Please select a reason', 'error'); return; }
+    if (!isFirebaseReady()) return;
+    setReportSubmitting(true);
+    try {
+      await fbSubmitReport({
+        listingId: l.id,
+        listingTitle: l.title,
+        sellerUid: l.userId || null,
+        sellerName: sellerName,
+        reporterUid: currentUser?.uid || null,
+        reporterName: currentUser?.name || 'User',
+        reason: reportReason,
+        details: reportDetails.trim() || null
+      });
+      addToast('Report submitted. Our team will review it.');
+      setReportOpen(false);
+      setReportReason('');
+      setReportDetails('');
+    } catch(e) { addToast('Failed to submit report', 'error'); }
+    setReportSubmitting(false);
   };
 
   return (
@@ -1518,7 +1565,7 @@ function ListingDetailPage() {
                   <Icons.Heart filled={isSaved} />
                 </button>
               </div>
-              <button className="w-full mt-2 py-3 border border-ink-0/10 dark:border-surface-1/10 rounded-xl text-sm font-medium hover:border-brand-300 dark:hover:border-brand-700 transition-colors flex items-center justify-center gap-2">
+              <button onClick={() => setReportOpen(true)} className="w-full mt-2 py-3 border border-ink-0/10 dark:border-surface-1/10 rounded-xl text-sm font-medium hover:border-brand-300 dark:hover:border-brand-700 transition-colors flex items-center justify-center gap-2">
                 <Icons.Flag /> Report Listing
               </button>
             </div>
@@ -1595,6 +1642,48 @@ function ListingDetailPage() {
             />
             <button onClick={handleContact} className="w-full mt-4 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all">
               Send Message
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {reportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => !reportSubmitting && setReportOpen(false)}>
+          <div className="absolute inset-0 bg-ink-0/50 backdrop-blur-sm" />
+          <div className="relative bg-surface-0 dark:bg-ink-1 rounded-2xl w-full max-w-md p-6 animate-scaleIn" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setReportOpen(false)} className="absolute top-4 right-4 text-ink-4 hover:text-ink-0"><Icons.X /></button>
+            <div className="flex items-center gap-2 mb-1">
+              <Icons.Flag />
+              <h3 className="font-display text-xl font-bold">Report Listing</h3>
+            </div>
+            <p className="text-sm text-ink-4 dark:text-surface-4 mb-4">About: {l.title}</p>
+
+            <label className="text-xs font-semibold text-ink-4 dark:text-surface-4 uppercase tracking-wider">Reason</label>
+            <select
+              value={reportReason}
+              onChange={e => setReportReason(e.target.value)}
+              className="w-full mt-1.5 mb-4 px-4 py-3 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-1 dark:bg-ink-2 outline-none focus:border-brand-400 text-sm"
+            >
+              <option value="">Select a reason...</option>
+              <option value="scam">Scam or fraud</option>
+              <option value="prohibited">Prohibited item</option>
+              <option value="misleading">Misleading description</option>
+              <option value="offensive">Offensive content</option>
+              <option value="spam">Spam or duplicate</option>
+              <option value="other">Other</option>
+            </select>
+
+            <label className="text-xs font-semibold text-ink-4 dark:text-surface-4 uppercase tracking-wider">Additional details (optional)</label>
+            <textarea
+              value={reportDetails}
+              onChange={e => setReportDetails(e.target.value)}
+              rows={3}
+              placeholder="Tell us more about the issue..."
+              className="w-full mt-1.5 px-4 py-3 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-1 dark:bg-ink-2 outline-none focus:border-brand-400 resize-none text-sm"
+            />
+            <button onClick={handleReport} disabled={reportSubmitting} className="w-full mt-4 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all disabled:opacity-50">
+              {reportSubmitting ? 'Submitting...' : 'Submit Report'}
             </button>
           </div>
         </div>
@@ -2732,6 +2821,25 @@ function AdminDashboardPage() {
   const [recentUsers, setRecentUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(true);
+
+  const reloadReports = useCallback(async () => {
+    setReportsLoading(true);
+    try { setReports(await fbGetReports()); }
+    catch(e) { console.error('Failed to load reports', e); }
+    setReportsLoading(false);
+  }, []);
+
+  useEffect(() => { reloadReports(); }, [reloadReports]);
+
+  const handleResolveReport = async (id, status) => {
+    try {
+      await fbResolveReport(id, status);
+      setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+      addToast(status === 'resolved' ? 'Report marked resolved' : 'Report dismissed');
+    } catch(e) { addToast('Failed to update report', 'error'); }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -2790,6 +2898,9 @@ function AdminDashboardPage() {
           <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${activeTab === tab ? 'bg-surface-0 dark:bg-ink-1 text-ink-0 dark:text-surface-1 shadow-sm' : 'text-ink-4 dark:text-surface-4 hover:text-ink-0 dark:hover:text-surface-2'}`}>
             {(tab === 'categories' || tab === 'site-settings') && <span className="text-xs">🔒</span>}
             {tab === 'site-settings' ? 'Site Settings' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === 'reports' && reports.filter(r => r.status === 'open').length > 0 && (
+              <span className="w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{reports.filter(r => r.status === 'open').length}</span>
+            )}
           </button>
         ))}
       </div>
@@ -2922,10 +3033,50 @@ function AdminDashboardPage() {
       )}
 
       {activeTab === 'reports' && (
-        <div className="animate-fadeIn bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-10 text-center">
-          <div className="text-4xl mb-3">🚧</div>
-          <p className="font-semibold text-ink-0 dark:text-surface-1">Reporting isn't built yet</p>
-          <p className="text-sm text-ink-4 dark:text-surface-4 mt-1 max-w-md mx-auto">There's no way for users to flag a listing or seller yet, so there's nothing real to show here. The "Report Listing" button on listing pages isn't wired up to anything currently.</p>
+        <div className="animate-fadeIn bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 overflow-hidden">
+          <div className="p-5 border-b border-ink-0/5 dark:border-surface-1/5 flex items-center justify-between">
+            <h3 className="font-semibold">Reported Listings</h3>
+            <span className="text-sm text-ink-4 dark:text-surface-4">{reports.filter(r => r.status === 'open').length} open</span>
+          </div>
+          {reportsLoading ? (
+            <p className="p-6 text-sm text-ink-4 dark:text-surface-4">Loading reports...</p>
+          ) : reports.length === 0 ? (
+            <p className="p-10 text-sm text-ink-4 dark:text-surface-4 text-center">No reports yet. 🎉</p>
+          ) : (
+            <div className="divide-y divide-ink-0/5 dark:divide-surface-1/5">
+              {reports.map(r => (
+                <div key={r.id} className="flex items-start gap-4 p-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-sm">{r.listingTitle || 'Untitled listing'}</p>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${r.status === 'open' ? 'bg-red-50 dark:bg-red-950/30 text-red-600' : r.status === 'resolved' ? 'bg-green-50 dark:bg-green-950/30 text-green-600' : 'bg-surface-2 dark:bg-ink-2 text-ink-4 dark:text-surface-4'}`}>{r.status}</span>
+                    </div>
+                    <p className="text-xs text-ink-4 dark:text-surface-4 mt-1 capitalize">Reason: {r.reason} • Reported by {r.reporterName || 'User'} {r.sellerName ? `• Seller: ${r.sellerName}` : ''}</p>
+                    {r.details && <p className="text-xs text-ink-5 mt-1">{r.details}</p>}
+                    <p className="text-[10px] text-ink-5 mt-1">{timeAgo(r.createdAt)}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {r.listingId && (
+                      <button
+                        onClick={() => {
+                          const full = listings.find(x => x.id === r.listingId) || pendingListings.find(x => x.id === r.listingId);
+                          if (full) navigate('listing', { listing: full });
+                          else addToast('That listing is no longer available', 'error');
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-ink-0/10 dark:border-surface-1/10 hover:bg-surface-2/50 dark:hover:bg-ink-2/50"
+                      >View</button>
+                    )}
+                    {r.status === 'open' && (
+                      <>
+                        <button onClick={() => handleResolveReport(r.id, 'resolved')} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-50 dark:bg-green-950/30 text-green-600 hover:bg-green-100">Resolve</button>
+                        <button onClick={() => handleResolveReport(r.id, 'dismissed')} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface-2 dark:bg-ink-2 text-ink-4 dark:text-surface-4 hover:bg-surface-3">Dismiss</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
