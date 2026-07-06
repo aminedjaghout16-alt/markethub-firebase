@@ -900,7 +900,7 @@ function timeAgoFromTimestamp(ts) {
   return new Date(ts.seconds * 1000).toLocaleDateString();
 }
 
-function ListingCard({ listing, index = 0 }) {
+function ListingCard({ listing, index = 0, onDelete }) {
   const { navigate, savedListings, toggleSave } = useApp();
   const isSaved = savedListings.includes(listing.id) || savedListings.includes(String(listing.id));
   const sellerName = listing.seller || listing.sellerName || 'Unknown';
@@ -923,6 +923,15 @@ function ListingCard({ listing, index = 0 }) {
           >
             <Icons.Heart filled={isSaved} />
           </button>
+          {onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(listing); }}
+              title="Delete listing"
+              className="absolute top-14 right-3 w-9 h-9 rounded-full flex items-center justify-center bg-white/80 dark:bg-ink-1/80 text-ink-2 dark:text-surface-2 hover:bg-red-500 hover:text-white transition-all"
+            >
+              <Icons.Trash />
+            </button>
+          )}
           <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
             <div>
               <p className="text-white font-bold text-lg">${Number(listing.price).toLocaleString()}{listing.priceLabel && <span className="font-normal text-sm opacity-80">{listing.priceLabel}</span>}</p>
@@ -2919,6 +2928,21 @@ function ProfilePage() {
     ? new Date(profileUser.createdAt.seconds * 1000).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     : null;
 
+  // Only the listing's own owner, or an admin (moderating someone else's profile),
+  // can delete a listing from here. Firestore rules enforce this server-side too.
+  const canModerate = isOwnProfile || currentUser?.role === 'ADMIN';
+  const handleDeleteListing = async (listing) => {
+    if (!confirm(`Delete "${listing.title}"? This can't be undone.`)) return;
+    try {
+      await fbDeleteListing(listing.id);
+      setSellerListings(prev => prev.filter(l => l.id !== listing.id));
+      addToast('Listing deleted');
+    } catch (e) {
+      console.error(e);
+      addToast('Failed to delete listing', 'error');
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-fadeIn">
       {/* Profile Header */}
@@ -2975,7 +2999,7 @@ function ProfilePage() {
                         l.status === 'rejected' ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'
                       }`}>{l.status}</span>
                     )}
-                    <ListingCard listing={l} index={i} />
+                    <ListingCard listing={l} index={i} onDelete={canModerate ? handleDeleteListing : undefined} />
                   </div>
                 ))}
               </div>
