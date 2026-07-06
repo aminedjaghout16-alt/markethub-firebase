@@ -177,12 +177,13 @@ const TESTIMONIALS = [];
 // This is enforced for real in Firestore rules (server-side) — this constant just controls
 // whether the UI shows the option at all. Replace with your actual UID from
 // Firebase Console → Authentication → Users → "User UID" column.
-const OWNER_UID = 'REPLACE_WITH_YOUR_FIREBASE_UID';
+const OWNER_UID = 'IEdhxBDxhwV0e2byBnNfWohDwfu1';
 // Extra password prompt shown even to you, so a logged-in session left open on a shared
-// device still can't be used to change these without the password. This is NOT the real
-// security boundary (it's just a string in this file) — the Firestore rule tied to
-// OWNER_UID above is what actually stops other admins from writing these fields.
-const SUPER_ADMIN_PASSWORD = 'REPLACE_WITH_YOUR_PASSWORD';
+// device still can't be used to change these without the password.
+// The password itself is NOT hardcoded here anymore — it lives in Firestore, in a
+// document (admin_secrets/superadmin) that only OWNER_UID can read or write (see
+// firestore.rules). The first time you open a gated section it'll ask you to set a
+// password; after that you can change it any time from the Site Settings tab.
 
 // ==================== FIREBASE SERVICE ====================
 let fbApp = null, fbAuth = null, fbDb = null;
@@ -288,6 +289,22 @@ async function fbGetSiteSettings() {
 
 async function fbUpdateSiteSettings(data) {
   await fbDb.collection('settings').doc('site').set(data, { merge: true });
+}
+
+// Super-admin password (the "owner password required" prompt) — stored server-side
+// so it can be changed from the site itself. Only OWNER_UID can read/write this doc
+// (see firestore.rules: admin_secrets/{docId}), so it's never exposed to anyone else,
+// unlike a hardcoded constant in this file.
+async function fbGetSuperAdminPassword() {
+  const doc = await fbDb.collection('admin_secrets').doc('superadmin').get();
+  return doc.exists ? (doc.data().password || null) : null;
+}
+
+async function fbSetSuperAdminPassword(newPassword) {
+  await fbDb.collection('admin_secrets').doc('superadmin').set({
+    password: newPassword,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
 }
 
 // Listings CRUD
@@ -2246,11 +2263,19 @@ function SellerDashboardPage() {
 // 2) Convenience: even you must enter a password each browser session before editing,
 //    in case a logged-in session is left open on a shared/public device.
 function SuperAdminGate({ children, label = 'this section' }) {
-  const { currentUser, addToast } = useApp();
+  const { currentUser, addToast, fbReady } = useApp();
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('mh_superadmin_unlocked') === 'true');
   const [pwInput, setPwInput] = useState('');
+  const [confirmInput, setConfirmInput] = useState('');
+  const [storedPassword, setStoredPassword] = useState(undefined); // undefined = still loading, null = not set yet
+  const [busy, setBusy] = useState(false);
 
   const isOwner = currentUser?.uid === OWNER_UID;
+
+  useEffect(() => {
+    if (!isOwner || !fbReady) return;
+    fbGetSuperAdminPassword().then(setStoredPassword).catch(() => setStoredPassword(null));
+  }, [isOwner, fbReady]);
 
   if (!isOwner) {
     return (
@@ -2263,9 +2288,60 @@ function SuperAdminGate({ children, label = 'this section' }) {
   }
 
   if (!unlocked) {
+    // Still fetching whether a password has ever been set
+    if (storedPassword === undefined) {
+      return (
+        <div className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-10 text-center max-w-sm mx-auto">
+          <p className="text-sm text-ink-4 dark:text-surface-4">Loading…</p>
+        </div>
+      );
+    }
+
+    // First time ever: no password has been set yet, so let the owner create one
+    if (storedPassword === null) {
+      const handleCreate = async (e) => {
+        e.preventDefault();
+        if (pwInput.length < 4) { addToast('Password must be at least 4 characters', 'error'); return; }
+        if (pwInput !== confirmInput) { addToast('Passwords do not match', 'error'); return; }
+        setBusy(true);
+        try {
+          await fbSetSuperAdminPassword(pwInput);
+          setStoredPassword(pwInput);
+          sessionStorage.setItem('mh_superadmin_unlocked', 'true');
+          setUnlocked(true);
+          setPwInput(''); setConfirmInput('');
+          addToast('Owner password set!');
+        } catch (err) {
+          console.error(err);
+          addToast('Failed to set password', 'error');
+        }
+        setBusy(false);
+      };
+      return (
+        <form onSubmit={handleCreate} className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-10 text-center max-w-sm mx-auto">
+          <div className="text-4xl mb-3">🔐</div>
+          <p className="font-semibold text-ink-0 dark:text-surface-1 mb-1">Set an owner password</p>
+          <p className="text-sm text-ink-4 dark:text-surface-4 mb-4">No password has been set yet. Choose one to protect {label} — you can change it later from Site Settings.</p>
+          <input
+            type="password" autoFocus value={pwInput} onChange={e => setPwInput(e.target.value)}
+            placeholder="New password"
+            className="w-full px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 outline-none focus:border-brand-400 text-sm mb-3"
+          />
+          <input
+            type="password" value={confirmInput} onChange={e => setConfirmInput(e.target.value)}
+            placeholder="Confirm password"
+            className="w-full px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 outline-none focus:border-brand-400 text-sm mb-3"
+          />
+          <button type="submit" disabled={busy} className="w-full py-2.5 bg-brand-500 text-white font-semibold rounded-xl hover:bg-brand-600 transition-colors text-sm disabled:opacity-50">
+            {busy ? 'Saving...' : 'Set Password'}
+          </button>
+        </form>
+      );
+    }
+
     const handleUnlock = (e) => {
       e.preventDefault();
-      if (pwInput === SUPER_ADMIN_PASSWORD) {
+      if (pwInput === storedPassword) {
         sessionStorage.setItem('mh_superadmin_unlocked', 'true');
         setUnlocked(true);
         setPwInput('');
@@ -2480,6 +2556,66 @@ function SiteSettingsManager() {
       <button type="submit" disabled={loading}
         className="px-6 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50 text-sm">
         {loading ? 'Saving...' : 'Save Changes'}
+      </button>
+    </form>
+  );
+}
+
+// Lets the owner change the "owner password required" gate password from the site
+// itself, instead of editing a hardcoded value in the code.
+function OwnerPasswordManager() {
+  const { addToast } = useApp();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const actual = await fbGetSuperAdminPassword();
+      if (actual !== null && current !== actual) {
+        addToast('Current password is incorrect', 'error');
+        setLoading(false);
+        return;
+      }
+      if (next.length < 4) { addToast('New password must be at least 4 characters', 'error'); setLoading(false); return; }
+      if (next !== confirm) { addToast('New passwords do not match', 'error'); setLoading(false); return; }
+      await fbSetSuperAdminPassword(next);
+      setCurrent(''); setNext(''); setConfirm('');
+      addToast('Owner password updated!');
+    } catch (err) {
+      console.error(err);
+      addToast('Failed to update password', 'error');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <form onSubmit={handleSave} className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-6 max-w-xl space-y-5 mt-6">
+      <div>
+        <h3 className="font-semibold text-lg text-ink-0 dark:text-surface-1">Owner Password</h3>
+        <p className="text-sm text-ink-4 dark:text-surface-4 mt-1">This is the extra password required to unlock Categories and Site Settings each session.</p>
+      </div>
+      <div>
+        <label className="block font-semibold text-sm mb-2">Current Password</label>
+        <input type="password" value={current} onChange={e => setCurrent(e.target.value)} placeholder="••••••••"
+          className="w-full px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 outline-none focus:border-brand-400 text-sm" />
+      </div>
+      <div>
+        <label className="block font-semibold text-sm mb-2">New Password</label>
+        <input type="password" value={next} onChange={e => setNext(e.target.value)} placeholder="Min. 4 characters"
+          className="w-full px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 outline-none focus:border-brand-400 text-sm" />
+      </div>
+      <div>
+        <label className="block font-semibold text-sm mb-2">Confirm New Password</label>
+        <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Repeat new password"
+          className="w-full px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 outline-none focus:border-brand-400 text-sm" />
+      </div>
+      <button type="submit" disabled={loading}
+        className="px-6 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50 text-sm">
+        {loading ? 'Saving...' : 'Update Password'}
       </button>
     </form>
   );
@@ -2718,6 +2854,7 @@ function AdminDashboardPage() {
       {activeTab === 'site-settings' && (
         <SuperAdminGate label="Site Settings">
           <SiteSettingsManager />
+          <OwnerPasswordManager />
         </SuperAdminGate>
       )}
     </div>
