@@ -361,15 +361,30 @@ async function fbToggleFavorite(userId, listingId) {
   const favId = `${userId}_${listingId}`;
   const ref = fbDb.collection('favorites').doc(favId);
   const doc = await ref.get();
+  const nowFavorited = !doc.exists;
+
+  // The actual favorite/unfavorite is the part that must succeed — do it first,
+  // on its own document, so it isn't blocked by rules on a document (the listing)
+  // that belongs to someone else.
   if (doc.exists) {
     await ref.delete();
-    await fbDb.collection('listings').doc(listingId).update({ favorites: firebase.firestore.FieldValue.increment(-1) });
-    return false;
   } else {
     await ref.set({ userId, listingId, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-    await fbDb.collection('listings').doc(listingId).update({ favorites: firebase.firestore.FieldValue.increment(1) });
-    return true;
   }
+
+  // Best-effort: keep the denormalized "favorites" counter on the listing in sync.
+  // Many Firestore rule setups only let the listing's OWNER update it, which would
+  // make this call throw for every other user. Treat it as non-critical so a rules
+  // restriction here can't undo the favorite itself.
+  try {
+    await fbDb.collection('listings').doc(listingId).update({
+      favorites: firebase.firestore.FieldValue.increment(nowFavorited ? 1 : -1)
+    });
+  } catch (e) {
+    console.warn('[favorites] Saved the favorite, but could not update the listing\'s favorites counter (likely a Firestore rules restriction):', e.message);
+  }
+
+  return nowFavorited;
 }
 
 async function fbGetFavorites(userId) {
@@ -693,7 +708,10 @@ function AppProvider({ children }) {
       const saved = await fbToggleFavorite(currentUser.uid, String(listingId));
       setSavedListings(prev => saved ? [...prev, listingId] : prev.filter(id => id !== listingId));
       addToast(saved ? 'Saved to your listings' : 'Removed from saved listings');
-    } catch(e) { addToast('Failed to update favorites', 'error'); }
+    } catch(e) {
+      console.error('[favorites] toggle failed:', e.code || '', e.message || e);
+      addToast(e.code === 'permission-denied' ? 'Favorites are blocked by Firestore rules — see console' : 'Failed to update favorites', 'error');
+    }
   }, [currentUser, addToast]);
 
   const navigate = useCallback((page, data = {}) => {
