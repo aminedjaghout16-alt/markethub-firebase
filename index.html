@@ -432,7 +432,19 @@ async function fbUpdateCategory(docId, data) {
   await fbDb.collection('categories').doc(docId).update(data);
 }
 
-async function fbDeleteCategory(docId) {
+async function fbDeleteCategory(docId, categoryId) {
+  // Refuse to delete a category that listings still reference — otherwise
+  // those listings are left pointing at a category id that no longer
+  // exists (broken filters, "Uncategorized" showing up unexpectedly, etc).
+  // This is a client-side guard for UX only; Firestore security rules should
+  // enforce the same check server-side since this can be bypassed by anyone
+  // calling the API directly.
+  const inUse = await fbDb.collection('listings').where('category', '==', categoryId).limit(1).get();
+  if (!inUse.empty) {
+    const err = new Error('This category still has listings assigned to it. Move or delete those listings first.');
+    err.code = 'CATEGORY_IN_USE';
+    throw err;
+  }
   await fbDb.collection('categories').doc(docId).delete();
 }
 
@@ -665,6 +677,16 @@ function AppProvider({ children }) {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   }, []);
 
+  // Called after a listing is deleted (from ListingCard, anywhere in the app)
+  // so every context-derived list — home/browse/search feeds, my listings,
+  // and the admin moderation queue — drops it immediately instead of waiting
+  // on the next refetch.
+  const removeListingLocally = useCallback((listingId) => {
+    setListings(prev => prev.filter(l => l.id !== listingId));
+    setMyListings(prev => prev.filter(l => l.id !== listingId));
+    setPendingListings(prev => prev.filter(l => l.id !== listingId));
+  }, []);
+
   const toggleSave = useCallback(async (listingId) => {
     if (!isFirebaseReady() || !currentUser?.uid) { addToast('Please log in to save listings', 'error'); return; }
     try {
@@ -700,7 +722,7 @@ function AppProvider({ children }) {
       listings, listingsLoading, reloadListings, activeConvId, setActiveConvId,
       handleLogout, fbReady, categories, reloadCategories,
       myListings, reloadMyListings, pendingListings, reloadPendingListings,
-      profileUserId, siteSettings, reloadSiteSettings
+      profileUserId, siteSettings, reloadSiteSettings, removeListingLocally
     }}>
       {children}
     </AppContext.Provider>
@@ -900,11 +922,39 @@ function timeAgoFromTimestamp(ts) {
   return new Date(ts.seconds * 1000).toLocaleDateString();
 }
 
-function ListingCard({ listing, index = 0, onDelete }) {
-  const { navigate, savedListings, toggleSave } = useApp();
+function ListingCard({ listing, index = 0, onDeleted }) {
+  const { navigate, savedListings, toggleSave, currentUser, addToast, removeListingLocally } = useApp();
   const isSaved = savedListings.includes(listing.id) || savedListings.includes(String(listing.id));
   const sellerName = listing.seller || listing.sellerName || 'Unknown';
   const img = listing.image || 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop';
+  const [isDeleted, setIsDeleted] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Delete permission lives here so every page that renders a ListingCard
+  // (home, browse, search, saved, profile, admin) gets it for free — no
+  // per-page wiring needed. Firestore rules enforce this server-side too,
+  // this is just the UI gate.
+  const canDelete = !!currentUser && (currentUser.uid === listing.userId || currentUser.role === 'ADMIN');
+
+  const handleDelete = async (e) => {
+    e.stopPropagation();
+    if (deleting) return;
+    if (!confirm(`Delete "${listing.title}"? This can't be undone.`)) return;
+    setDeleting(true);
+    try {
+      await fbDeleteListing(listing.id);
+      setIsDeleted(true);
+      addToast('Listing deleted');
+      removeListingLocally(listing.id); // keeps home/browse/search/saved/my-listings/admin-queue in sync
+      onDeleted?.(listing.id); // optional: lets parents with their own local list (e.g. Profile) prune it immediately
+    } catch (e) {
+      console.error(e);
+      addToast('Failed to delete listing', 'error');
+      setDeleting(false);
+    }
+  };
+
+  if (isDeleted) return null;
 
   return (
     <div className={`animate-fadeInUp delay-${(index % 4) + 1} group cursor-pointer`} onClick={() => navigate('listing', { listing })}>
@@ -923,11 +973,12 @@ function ListingCard({ listing, index = 0, onDelete }) {
           >
             <Icons.Heart filled={isSaved} />
           </button>
-          {onDelete && (
+          {canDelete && (
             <button
-              onClick={(e) => { e.stopPropagation(); onDelete(listing); }}
+              onClick={handleDelete}
+              disabled={deleting}
               title="Delete listing"
-              className="absolute top-14 right-3 w-9 h-9 rounded-full flex items-center justify-center bg-white/80 dark:bg-ink-1/80 text-ink-2 dark:text-surface-2 hover:bg-red-500 hover:text-white transition-all"
+              className="absolute top-14 right-3 w-9 h-9 rounded-full flex items-center justify-center bg-white/80 dark:bg-ink-1/80 text-ink-2 dark:text-surface-2 hover:bg-red-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icons.Trash />
             </button>
@@ -2417,14 +2468,16 @@ function CategoriesManager() {
     setLoading(false);
   };
 
-  const handleDelete = async (docId) => {
-    if (!confirm('Delete this category?')) return;
+  const handleDelete = async (cat) => {
+    if (!confirm(`Delete "${cat.name}"?`)) return;
     setLoading(true);
     try {
-      await fbDeleteCategory(docId);
+      await fbDeleteCategory(cat.docId, cat.id);
       await reloadCategories();
       addToast('Category deleted');
-    } catch(e) { addToast('Failed to delete category', 'error'); }
+    } catch(e) {
+      addToast(e.code === 'CATEGORY_IN_USE' ? e.message : 'Failed to delete category', 'error');
+    }
     setLoading(false);
   };
 
@@ -2504,7 +2557,7 @@ function CategoriesManager() {
                       className="p-2 rounded-lg hover:bg-ink-0/5 dark:hover:bg-surface-1/5 text-ink-4 dark:text-surface-4 transition-colors">
                       <Icons.Edit />
                     </button>
-                    <button onClick={() => handleDelete(cat.docId)}
+                    <button onClick={() => handleDelete(cat)}
                       className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 text-ink-4 hover:text-red-500 transition-colors">
                       <Icons.Trash />
                     </button>
@@ -2928,19 +2981,11 @@ function ProfilePage() {
     ? new Date(profileUser.createdAt.seconds * 1000).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     : null;
 
-  // Only the listing's own owner, or an admin (moderating someone else's profile),
-  // can delete a listing from here. Firestore rules enforce this server-side too.
-  const canModerate = isOwnProfile || currentUser?.role === 'ADMIN';
-  const handleDeleteListing = async (listing) => {
-    if (!confirm(`Delete "${listing.title}"? This can't be undone.`)) return;
-    try {
-      await fbDeleteListing(listing.id);
-      setSellerListings(prev => prev.filter(l => l.id !== listing.id));
-      addToast('Listing deleted');
-    } catch (e) {
-      console.error(e);
-      addToast('Failed to delete listing', 'error');
-    }
+  // ListingCard itself now decides who can delete (owner or admin) and performs
+  // the delete. We just need to prune our local sellerListings/grouped state
+  // once it's gone so the grid updates without a full reload.
+  const handleListingDeleted = (listingId) => {
+    setSellerListings(prev => prev.filter(l => l.id !== listingId));
   };
 
   return (
@@ -2999,7 +3044,7 @@ function ProfilePage() {
                         l.status === 'rejected' ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'
                       }`}>{l.status}</span>
                     )}
-                    <ListingCard listing={l} index={i} onDelete={canModerate ? handleDeleteListing : undefined} />
+                    <ListingCard listing={l} index={i} onDeleted={handleListingDeleted} />
                   </div>
                 ))}
               </div>
