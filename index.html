@@ -3735,7 +3735,7 @@ function PrivacyPage() {
 // ==================== AI CHATBOT WIDGET ====================
 // Uses Google Gemini API with embedded key - works for everyone instantly
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 const GEMINI_API_KEY = 'AQ.Ab8RN6IZYV_CDecQ89vpxzbYRZ2TXqp_dq0dK6Ii2eA1rDP2Hg';
 const CHAT_HISTORY_STORAGE = 'mh_chat_history';
 
@@ -3753,7 +3753,7 @@ function saveChatHistory(history) {
   localStorage.setItem(CHAT_HISTORY_STORAGE, JSON.stringify(trimmed));
 }
 
-async function callGeminiAPI(conversationHistory) {
+async function callGeminiAPI(conversationHistory, retries = 2) {
   // Build contents array from conversation history (last N messages)
   const contents = conversationHistory
     .filter(m => m.role === 'user' || m.role === 'bot')
@@ -3783,17 +3783,23 @@ async function callGeminiAPI(conversationHistory) {
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
     const errMsg = errData?.error?.message || `API error ${res.status}`;
-    
+
+    // Retry on rate limit (429) if we have retries left
+    if (res.status === 429 && retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      return callGeminiAPI(conversationHistory, retries - 1);
+    }
+
     // Check for auth errors specifically
     if (res.status === 401 || res.status === 403 || errMsg.toLowerCase().includes('authentication')) {
       throw new Error('The AI service is not properly configured. Please contact the site administrator or try again later.');
     }
-    
+
     // Check for quota/rate limit errors
     if (res.status === 429 || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('limit')) {
       throw new Error('The AI service is temporarily unavailable due to high traffic. Please try again in a moment.');
     }
-    
+
     throw new Error(errMsg || 'Something went wrong. Please try again.');
   }
 
