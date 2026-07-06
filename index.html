@@ -3736,7 +3736,7 @@ function PrivacyPage() {
 // Uses Google Gemini API with embedded key - works for everyone instantly
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-const GEMINI_API_KEY = 'AQ.Ab8RN6LEQisJDo4bC1R3hOitabOnu5tRZ3CyNaf1KbK9kFR8Fg';
+const GEMINI_API_KEY = 'AQ.Ab8RN6IZYV_CDecQ89vpxzbYRZ2TXqp_dq0dK6Ii2eA1rDP2Hg';
 const CHAT_HISTORY_STORAGE = 'mh_chat_history';
 
 const SYSTEM_PROMPT = `You are a helpful, friendly AI assistant embedded in MarketHub, a premium marketplace. You can answer ANY question — science, math, coding, writing, recipes, travel, life advice, explanations, translations, brainstorming, and more. Keep responses concise and well-formatted (use line breaks for readability). If the user asks about the marketplace itself, mention that MarketHub is a buy/sell/services platform with listings, categories, seller dashboards, and messaging between users.`;
@@ -3783,7 +3783,18 @@ async function callGeminiAPI(conversationHistory) {
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
     const errMsg = errData?.error?.message || `API error ${res.status}`;
-    throw new Error(errMsg);
+    
+    // Check for auth errors specifically
+    if (res.status === 401 || res.status === 403 || errMsg.toLowerCase().includes('authentication')) {
+      throw new Error('The AI service is not properly configured. Please contact the site administrator or try again later.');
+    }
+    
+    // Check for quota/rate limit errors
+    if (res.status === 429 || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('limit')) {
+      throw new Error('The AI service is temporarily unavailable due to high traffic. Please try again in a moment.');
+    }
+    
+    throw new Error(errMsg || 'Something went wrong. Please try again.');
   }
 
   const data = await res.json();
