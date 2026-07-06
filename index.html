@@ -414,7 +414,11 @@ async function fbGetMessages(convId) {
 // Categories CRUD
 async function fbGetCategories() {
   const snap = await fbDb.collection('categories').orderBy('order', 'asc').get();
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  // docId = the real Firestore document ID (needed for update/delete).
+  // The rest of the app (listing category filters, etc.) uses the "id" field
+  // stored in the document data itself (a name-based slug) — keep that as `id`,
+  // and expose the real doc id separately so admin actions target the right doc.
+  return snap.docs.map(d => ({ docId: d.id, ...d.data() }));
 }
 
 async function fbAddCategory(data) {
@@ -424,12 +428,12 @@ async function fbAddCategory(data) {
   return ref.id;
 }
 
-async function fbUpdateCategory(id, data) {
-  await fbDb.collection('categories').doc(id).update(data);
+async function fbUpdateCategory(docId, data) {
+  await fbDb.collection('categories').doc(docId).update(data);
 }
 
-async function fbDeleteCategory(id) {
-  await fbDb.collection('categories').doc(id).delete();
+async function fbDeleteCategory(docId) {
+  await fbDb.collection('categories').doc(docId).delete();
 }
 
 // Setup page component
@@ -2388,7 +2392,7 @@ function CategoriesManager() {
   };
 
   const handleEdit = async (cat) => {
-    setEditId(cat.id);
+    setEditId(cat.docId);
     setEditForm({ name: cat.name, icon: cat.icon });
   };
 
@@ -2404,11 +2408,11 @@ function CategoriesManager() {
     setLoading(false);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (docId) => {
     if (!confirm('Delete this category?')) return;
     setLoading(true);
     try {
-      await fbDeleteCategory(id);
+      await fbDeleteCategory(docId);
       await reloadCategories();
       addToast('Category deleted');
     } catch(e) { addToast('Failed to delete category', 'error'); }
@@ -2469,8 +2473,8 @@ function CategoriesManager() {
         ) : (
           <div className="divide-y divide-ink-0/5 dark:divide-surface-1/5">
             {categories.map(cat => (
-              <div key={cat.id} className="flex items-center gap-4 p-4">
-                {editId === cat.id ? (
+              <div key={cat.docId} className="flex items-center gap-4 p-4">
+                {editId === cat.docId ? (
                   <>
                     <input type="text" value={editForm.icon} onChange={e => setEditForm({...editForm, icon: e.target.value})}
                       className="w-14 px-2 py-1.5 rounded-lg border border-ink-0/10 dark:border-surface-1/10 bg-surface-1 dark:bg-ink-2 text-center text-xl outline-none focus:border-brand-400" />
@@ -2491,7 +2495,7 @@ function CategoriesManager() {
                       className="p-2 rounded-lg hover:bg-ink-0/5 dark:hover:bg-surface-1/5 text-ink-4 dark:text-surface-4 transition-colors">
                       <Icons.Edit />
                     </button>
-                    <button onClick={() => handleDelete(cat.id)}
+                    <button onClick={() => handleDelete(cat.docId)}
                       className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 text-ink-4 hover:text-red-500 transition-colors">
                       <Icons.Trash />
                     </button>
