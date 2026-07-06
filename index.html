@@ -1166,7 +1166,7 @@ function SectionHeading({ title, subtitle, action, onAction }) {
 
 // ==================== HOME PAGE ====================
 function HomePage() {
-  const { navigate, setSearchQuery, addToast, listings, categories } = useApp();
+  const { navigate, setSearchQuery, addToast, listings, categories, isLoggedIn } = useApp();
   const [heroSearch, setHeroSearch] = useState('');
   const [statsVisible, setStatsVisible] = useState(false);
   const statsRef = useRef(null);
@@ -1346,10 +1346,10 @@ function HomePage() {
           <h2 className="font-display text-3xl sm:text-4xl font-bold text-ink-0 dark:text-surface-1 mb-4">Ready to start selling?</h2>
           <p className="text-ink-4 dark:text-surface-4 text-lg mb-8 max-w-md mx-auto">Create your seller account in minutes and reach millions of buyers.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button onClick={() => navigate('create')} className="px-8 py-3.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20">
+            <button onClick={() => navigate(isLoggedIn ? 'create' : 'register')} className="px-8 py-3.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20">
               Create a Listing
             </button>
-            <button onClick={() => navigate('register')} className="px-8 py-3.5 bg-surface-0 dark:bg-ink-1 text-ink-0 dark:text-surface-1 font-semibold rounded-xl border border-ink-0/10 dark:border-surface-1/10 hover:border-brand-300 dark:hover:border-brand-700 transition-all">
+            <button onClick={() => navigate(isLoggedIn ? 'seller-dashboard' : 'register')} className="px-8 py-3.5 bg-surface-0 dark:bg-ink-1 text-ink-0 dark:text-surface-1 font-semibold rounded-xl border border-ink-0/10 dark:border-surface-1/10 hover:border-brand-300 dark:hover:border-brand-700 transition-all">
               Open a Shop
             </button>
           </div>
