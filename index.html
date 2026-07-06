@@ -347,6 +347,22 @@ async function fbGetListings(filters = {}) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// Real-time listener for a listings query. Fires immediately with the current
+// results, then again whenever any matching listing is added, edited, deleted,
+// or changes status (e.g. approved/rejected/deleted from the admin panel) —
+// so every open tab/browser stays in sync with no page refresh needed.
+function fbListenListings(filters = {}, callback) {
+  let q = fbDb.collection('listings').orderBy('createdAt', 'desc');
+  if (filters.category) q = q.where('category', '==', filters.category);
+  if (filters.userId) q = q.where('userId', '==', filters.userId);
+  if (filters.status) q = q.where('status', '==', filters.status);
+  q = q.limit(filters.limit || 50);
+  return q.onSnapshot(
+    snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    err => console.error('[fbListenListings] error', err)
+  );
+}
+
 async function fbGetListing(id) {
   const doc = await fbDb.collection('listings').doc(id).get();
   return doc.exists ? { id: doc.id, ...doc.data() } : null;
@@ -475,6 +491,15 @@ async function fbGetCategories() {
   // stored in the document data itself (a name-based slug) — keep that as `id`,
   // and expose the real doc id separately so admin actions target the right doc.
   return snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+}
+
+// Real-time listener for categories — updates every open tab the instant an
+// admin adds, edits, reorders, or deletes a category.
+function fbListenCategories(callback) {
+  return fbDb.collection('categories').orderBy('order', 'asc').onSnapshot(
+    snap => callback(snap.docs.map(d => ({ docId: d.id, ...d.data() }))),
+    err => console.error('[fbListenCategories] error', err)
+  );
 }
 
 async function fbAddCategory(data) {
@@ -662,7 +687,9 @@ function AppProvider({ children }) {
     return () => unsub();
   }, [fbReady]);
 
-  // Load all PUBLIC (approved) listings from Firestore
+  // Load all PUBLIC (approved) listings from Firestore — live, so a listing
+  // that gets deleted, edited, approved, or rejected disappears/updates on
+  // every open tab instantly, with no page refresh needed.
   const reloadListings = useCallback(async () => {
     if (!isFirebaseReady()) return;
     setListingsLoading(true);
@@ -673,9 +700,17 @@ function AppProvider({ children }) {
     setListingsLoading(false);
   }, []);
 
-  useEffect(() => { if (fbReady) reloadListings(); }, [fbReady, reloadListings]);
+  useEffect(() => {
+    if (!fbReady || !isFirebaseReady()) return;
+    setListingsLoading(true);
+    const unsubscribe = fbListenListings({ status: 'approved' }, data => {
+      setListings(data);
+      setListingsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [fbReady]);
 
-  // Load the current seller's own listings, any status (for Seller Dashboard)
+  // Load the current seller's own listings, any status (for Seller Dashboard) — live
   const [myListings, setMyListings] = useState([]);
   const reloadMyListings = useCallback(async () => {
     if (!isFirebaseReady() || !currentUser?.uid) { setMyListings([]); return; }
@@ -685,9 +720,13 @@ function AppProvider({ children }) {
     } catch(e) { console.error('Failed to load my listings', e); }
   }, [currentUser?.uid]);
 
-  useEffect(() => { if (fbReady && currentUser?.uid) reloadMyListings(); }, [fbReady, currentUser?.uid, reloadMyListings]);
+  useEffect(() => {
+    if (!fbReady || !isFirebaseReady() || !currentUser?.uid) { setMyListings([]); return; }
+    const unsubscribe = fbListenListings({ userId: currentUser.uid }, data => setMyListings(data));
+    return () => unsubscribe();
+  }, [fbReady, currentUser?.uid]);
 
-  // Load ALL listings for admin moderation queue (admin-only read per security rules)
+  // Load ALL listings for admin moderation queue (admin-only read per security rules) — live
   const [pendingListings, setPendingListings] = useState([]);
   const reloadPendingListings = useCallback(async () => {
     if (!isFirebaseReady() || currentUser?.role !== 'ADMIN') { setPendingListings([]); return; }
@@ -697,6 +736,18 @@ function AppProvider({ children }) {
     } catch(e) { console.error('Failed to load pending listings', e); }
   }, [currentUser?.role]);
 
+  useEffect(() => {
+    if (!fbReady || !isFirebaseReady() || currentUser?.role !== 'ADMIN') { setPendingListings([]); return; }
+    const unsubscribe = fbListenListings({ status: 'pending', limit: 100 }, data => setPendingListings(data));
+    return () => unsubscribe();
+  }, [fbReady, currentUser?.role]);
+
+  useEffect(() => {
+    if (!fbReady || !isFirebaseReady()) return;
+    const unsubscribe = fbListenCategories(cats => setCategories(cats));
+    return () => unsubscribe();
+  }, [fbReady]);
+
   const reloadCategories = useCallback(async () => {
     if (!isFirebaseReady()) return;
     try {
@@ -704,8 +755,6 @@ function AppProvider({ children }) {
       setCategories(cats);
     } catch(e) { console.error('Failed to load categories', e); }
   }, []);
-
-  useEffect(() => { if (fbReady) reloadCategories(); }, [fbReady, reloadCategories]);
 
   const [siteSettings, setSiteSettings] = useState({});
   const reloadSiteSettings = useCallback(async () => {
