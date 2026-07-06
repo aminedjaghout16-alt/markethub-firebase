@@ -426,6 +426,18 @@ async function fbGetMessages(convId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// Real-time listener for messages in a conversation. Calls `callback` immediately
+// with the current messages, then again every time messages are added/changed.
+// Returns an unsubscribe function — call it when the chat is closed/unmounted.
+function fbListenMessages(convId, callback) {
+  return fbDb.collection('conversations').doc(convId)
+    .collection('messages').orderBy('createdAt', 'asc').limit(100)
+    .onSnapshot(snap => {
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      callback(msgs);
+    }, err => console.error('[fbListenMessages] error', err));
+}
+
 // Reports (flag a listing/seller)
 async function fbSubmitReport(report) {
   const ref = await fbDb.collection('reports').add({
@@ -2083,20 +2095,20 @@ function MessagesPage() {
 
   const activeConv = messages.find(m => m.id === activeConvId);
 
-  // Load messages when active conversation changes
+  // Subscribe to messages in real time when active conversation changes.
+  // fbListenMessages fires immediately with current messages, then again
+  // automatically whenever a new message arrives — no refresh needed.
   useEffect(() => {
     if (!activeConvId) { setChatMessages([]); return; }
-    (async () => {
-      try {
-        const msgs = await fbGetMessages(activeConvId);
-        setChatMessages(msgs.map(m => ({
-          id: m.id,
-          sender: m.from === currentUser?.uid ? 'me' : 'them',
-          text: m.text,
-          time: m.createdAt?.toDate?.()?.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) || ''
-        })));
-      } catch(e) { console.error(e); }
-    })();
+    const unsub = fbListenMessages(activeConvId, (msgs) => {
+      setChatMessages(msgs.map(m => ({
+        id: m.id,
+        sender: m.from === currentUser?.uid ? 'me' : 'them',
+        text: m.text,
+        time: m.createdAt?.toDate?.()?.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) || ''
+      })));
+    });
+    return () => unsub();
   }, [activeConvId]);
 
   // Auto-scroll
@@ -2104,17 +2116,14 @@ function MessagesPage() {
 
   const sendMessage = async () => {
     if (!newMsg.trim() || !activeConvId) return;
+    const text = newMsg;
     setNewMsg('');
     try {
       // activeConvId is the conv document ID; from needs the other user's UID
       const otherUid = activeConv?.from || activeConvId.split('_').find(p => p !== currentUser?.uid);
-      await fbSendMessage(currentUser.uid, otherUid, currentUser.name, newMsg, null);
-      // Refresh messages
-      const msgs = await fbGetMessages(activeConvId);
-      setChatMessages(msgs.map(m => ({
-        id: m.id, sender: m.from === currentUser.uid ? 'me' : 'them',
-        text: m.text, time: m.createdAt?.toDate?.()?.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) || ''
-      })));
+      await fbSendMessage(currentUser.uid, otherUid, currentUser.name, text, null);
+      // No manual refresh needed — the fbListenMessages subscription above
+      // picks up the new message automatically and updates chatMessages.
     } catch(e) { addToast('Failed to send message', 'error'); }
   };
 
