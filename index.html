@@ -3733,12 +3733,12 @@ function PrivacyPage() {
 }
 
 // ==================== AI CHATBOT WIDGET ====================
-// Uses Pollinations.ai free text API - no API key needed, works for everyone instantly
+// Algerian Bot - Uses Pollinations.ai free text API - no API key needed, works for everyone instantly
 
 const POLLINATIONS_URL = 'https://text.pollinations.ai/openai';
-const CHAT_HISTORY_STORAGE = 'mh_chat_history';
+const CHAT_HISTORY_STORAGE = 'algerian_bot_chat_history';
 
-const SYSTEM_PROMPT = `You are a helpful, friendly AI assistant embedded in MarketHub, a premium marketplace. You can answer ANY question — science, math, coding, writing, recipes, travel, life advice, explanations, translations, brainstorming, and more. Keep responses concise and well-formatted (use line breaks for readability). If the user asks about the marketplace itself, mention that MarketHub is a buy/sell/services platform with listings, categories, seller dashboards, and messaging between users.`;
+const SYSTEM_PROMPT = `You are the Algerian Bot - a warm, friendly AI assistant with Algerian hospitality. You can answer ANY question — science, math, coding, writing, recipes, travel, life advice, explanations, translations, and more. Keep responses concise and well-formatted. You're knowledgeable, approachable, and sometimes add a touch of Algerian warmth. If asked about the marketplace, mention MarketHub is a buy/sell/services platform. Greet users with "Marhba!" (Welcome!) when appropriate.`;
 
 function getStoredChatHistory() {
   try {
@@ -3805,13 +3805,13 @@ function formatBotText(text) {
     .replace(/\n/g, '<br/>');
 }
 
-function ChatBot() {
+function AlgerianBot() {
   const { navigate, t } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState(() => {
     const stored = getStoredChatHistory();
     return stored.length > 0 ? stored : [
-      { id: 1, role: 'bot', text: "Hi! I'm your AI assistant. Ask me anything — science, coding, recipes, travel tips, life advice, or help with MarketHub. What's on your mind?" }
+      { id: 1, role: 'bot', text: "Marhba! 🇩🇿 I'm your Algerian Bot. Ask me anything — science, coding, recipes, life advice, or anything else! What's on your mind?" }
     ];
   });
   const [input, setInput] = useState('');
@@ -3838,7 +3838,7 @@ function ChatBot() {
   }, [isOpen]);
 
   const handleClearChat = () => {
-    setMessages([{ id: Date.now(), role: 'bot', text: "Chat cleared! Ask me anything." }]);
+    setMessages([{ id: Date.now(), role: 'bot', text: "Chat cleared! Marhba, ask me anything 🇩🇿" }]);
     localStorage.removeItem(CHAT_HISTORY_STORAGE);
   };
 
@@ -3869,9 +3869,9 @@ function ChatBot() {
 
   const quickPrompts = [
     { label: '💡 Explain something', query: 'Explain quantum computing like I\'m 10' },
-    { label: '✍️ Help me write', query: 'Help me write a professional email to my boss asking for a raise' },
-    { label: '🍳 Recipe ideas', query: 'Give me a quick dinner recipe with chicken and pasta' },
-    { label: '🛍️ About this site', query: 'What is MarketHub and how do I use it?' },
+    { label: '✍️ Help me write', query: 'Help me write a professional email to my boss' },
+    { label: '🍳 Algerian recipes', query: 'Give me a traditional Algerian recipe' },
+    { label: '🛍️ About this site', query: 'What is MarketHub?' },
   ];
 
   const showQuickActions = messages.filter(m => m.role === 'user').length === 0;
@@ -3895,75 +3895,74 @@ function ChatBot() {
 
   return (
     <>
-      {/* FAB Button */}
+      {/* FAB Button - Algerian themed */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          aria-label="Open AI chat assistant"
-          className="chatbot-fab fixed bottom-6 left-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 text-white flex items-center justify-center shadow-2xl shadow-brand-500/30 hover:from-brand-600 hover:to-brand-700 hover:scale-105 transition-all duration-200"
+          aria-label="Open Algerian Bot chat"
+          className="chatbot-fab fixed bottom-6 left-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-green-600 via-white to-red-600 text-white flex items-center justify-center shadow-2xl shadow-green-500/40 hover:scale-110 transition-all duration-300 border-4 border-white dark:border-gray-800"
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
+          <span className="text-3xl">🇩🇿</span>
         </button>
       )}
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="chatbot-window fixed bottom-6 left-6 z-50 w-[380px] max-w-[calc(100vw-48px)] h-[560px] max-h-[calc(100vh-48px)] rounded-2xl shadow-2xl flex flex-col overflow-hidden bg-surface-0 dark:bg-ink-1 border border-ink-0/10 dark:border-surface-1/10">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-brand-500 to-brand-600 text-white flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/>
-                  <path d="M16 14H8a4 4 0 0 0-4 4v2h16v-2a4 4 0 0 0-4-4z"/>
-                  <circle cx="12" cy="6" r="1.5" fill="currentColor" stroke="none"/>
-                </svg>
+        <div className="chatbot-window fixed bottom-6 left-6 z-50 w-[400px] max-w-[calc(100vw-48px)] h-[600px] max-h-[calc(100vh-48px)] rounded-3xl shadow-2xl flex flex-col overflow-hidden bg-surface-0 dark:bg-ink-1 border-2 border-green-500/20 dark:border-green-500/10">
+          {/* Header - Algerian flag gradient */}
+          <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-green-600 via-green-500 to-green-600 text-white flex-shrink-0 relative overflow-hidden">
+            {/* Decorative pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-2 right-8 text-6xl">☪</div>
+            </div>
+            
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-11 h-11 rounded-full bg-white/25 backdrop-blur-sm flex items-center justify-center border-2 border-white/30 shadow-lg">
+                <span className="text-2xl">🇩🇿</span>
               </div>
               <div>
-                <p className="font-semibold text-sm">AI Assistant</p>
+                <p className="font-bold text-base tracking-wide">Algerian Bot</p>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-green-300"></span>
-                  <span className="text-xs opacity-80">Powered by Gemini</span>
+                  <span className="w-2 h-2 rounded-full bg-green-300 animate-pulse"></span>
+                  <span className="text-xs font-medium opacity-90">Marhba! Online</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 relative z-10">
               <button
                 onClick={handleClearChat}
                 aria-label="Clear chat"
                 title="Clear conversation"
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
+                className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-white/25 backdrop-blur-sm transition-all"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
               <button
                 onClick={() => setIsOpen(false)}
                 aria-label="Close chat"
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
+                className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-white/25 backdrop-blur-sm transition-all"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
           </div>
 
           {/* Messages Area */}
-          <div ref={scrollRef} className="chatbot-scrollbar flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          <div ref={scrollRef} className="chatbot-scrollbar flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gradient-to-b from-green-50/30 to-transparent dark:from-green-950/10">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`chatbot-msg-in flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.role !== 'user' && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center flex-shrink-0 mr-2 mt-0.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M16 14H8a4 4 0 0 0-4 4v2h16v-2a4 4 0 0 0-4-4z"/></svg>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 via-white to-red-500 flex items-center justify-center flex-shrink-0 mr-2 mt-0.5 shadow-md border-2 border-white dark:border-gray-700">
+                    <span className="text-sm">🇩🇿</span>
                   </div>
                 )}
-                <div className={`max-w-[80%] px-4 py-2.5 text-[13px] leading-relaxed ${
+                <div className={`max-w-[80%] px-4 py-3 text-[14px] leading-relaxed shadow-sm ${
                   msg.role === 'user'
-                    ? 'chat-bubble-sent bg-gradient-to-r from-brand-500 to-brand-600 text-white'
-                    : 'chat-bubble-received bg-surface-2 dark:bg-ink-2 text-ink-1 dark:text-surface-2'
+                    ? 'chat-bubble-sent bg-gradient-to-br from-brand-500 to-brand-600 text-white'
+                    : 'chat-bubble-received bg-white dark:bg-gray-800 text-ink-1 dark:text-surface-2 border border-gray-200 dark:border-gray-700'
                 }`}>
                   {msg.formatted
                     ? <span dangerouslySetInnerHTML={{ __html: formatBotText(msg.text) }} />
@@ -3976,7 +3975,10 @@ function ChatBot() {
             {/* Error message */}
             {error && (
               <div className="chatbot-msg-in flex justify-start">
-                <div className="max-w-[80%] px-4 py-2.5 text-[13px] bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400 rounded-2xl">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 via-white to-red-500 flex items-center justify-center flex-shrink-0 mr-2 mt-0.5 shadow-md border-2 border-white dark:border-gray-700">
+                  <span className="text-sm">🇩🇿</span>
+                </div>
+                <div className="max-w-[80%] px-4 py-3 text-[13px] bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400 rounded-2xl shadow-sm">
                   {error}
                 </div>
               </div>
@@ -3985,13 +3987,13 @@ function ChatBot() {
             {/* Typing indicator */}
             {isTyping && (
               <div className="chatbot-msg-in flex justify-start">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center flex-shrink-0 mr-2 mt-0.5">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/></svg>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 via-white to-red-500 flex items-center justify-center flex-shrink-0 mr-2 mt-0.5 shadow-md border-2 border-white dark:border-gray-700">
+                  <span className="text-sm">🇩🇿</span>
                 </div>
-                <div className="chat-bubble-received bg-surface-2 dark:bg-ink-2 px-4 py-3 flex items-center gap-1.5">
-                  <span className="chatbot-dot-1 w-2 h-2 rounded-full bg-ink-4 dark:bg-surface-4"></span>
-                  <span className="chatbot-dot-2 w-2 h-2 rounded-full bg-ink-4 dark:bg-surface-4"></span>
-                  <span className="chatbot-dot-3 w-2 h-2 rounded-full bg-ink-4 dark:bg-surface-4"></span>
+                <div className="chat-bubble-received bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-1.5 shadow-sm">
+                  <span className="chatbot-dot-1 w-2 h-2 rounded-full bg-green-500"></span>
+                  <span className="chatbot-dot-2 w-2 h-2 rounded-full bg-white border border-gray-400"></span>
+                  <span className="chatbot-dot-3 w-2 h-2 rounded-full bg-red-500"></span>
                 </div>
               </div>
             )}
@@ -4000,13 +4002,13 @@ function ChatBot() {
           {/* Quick Prompts */}
           {showQuickActions && (
             <div className="px-4 pb-2 flex-shrink-0">
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {quickPrompts.map((qp) => (
                   <button
                     key={qp.label}
                     onClick={() => handleQuickPrompt(qp.query)}
                     disabled={isTyping}
-                    className="px-3 py-1.5 text-[11px] font-medium rounded-full bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800/30 hover:bg-brand-100 dark:hover:bg-brand-950/50 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 text-xs font-semibold rounded-full bg-gradient-to-r from-green-50 to-white dark:from-green-950/30 dark:to-gray-800 text-green-700 dark:text-green-400 border-2 border-green-200 dark:border-green-800/50 hover:from-green-100 hover:to-green-50 dark:hover:from-green-950/50 dark:hover:to-gray-700 transition-all disabled:opacity-50 shadow-sm hover:shadow"
                   >
                     {qp.label}
                   </button>
@@ -4016,25 +4018,25 @@ function ChatBot() {
           )}
 
           {/* Input Area */}
-          <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-ink-0/5 dark:border-surface-1/10">
+          <div className="flex-shrink-0 px-4 pb-4 pt-3 border-t-2 border-green-100 dark:border-green-900/30 bg-gradient-to-t from-green-50/50 to-transparent dark:from-green-950/20">
             <div className="flex items-center gap-2">
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask me anything..."
+                placeholder="Ask me anything, sidi..."
                 rows={1}
-                className="flex-1 px-4 py-2.5 bg-surface-1 dark:bg-ink-2 rounded-xl border border-ink-0/10 dark:border-surface-1/10 text-sm text-ink-0 dark:text-surface-1 placeholder:text-ink-5 dark:placeholder:text-surface-4 outline-none focus:border-brand-400 transition-colors resize-none"
-                style={{ minHeight: '38px', maxHeight: '80px' }}
+                className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 text-sm text-ink-0 dark:text-surface-1 placeholder:text-ink-5 dark:placeholder:text-surface-4 outline-none focus:border-green-500 dark:focus:border-green-600 transition-all resize-none shadow-sm"
+                style={{ minHeight: '44px', maxHeight: '80px' }}
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isTyping}
                 aria-label="Send message"
-                className="w-10 h-10 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white flex items-center justify-center hover:from-brand-600 hover:to-brand-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                className="w-11 h-11 rounded-2xl bg-gradient-to-br from-green-600 to-green-700 text-white flex items-center justify-center hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-lg hover:shadow-xl disabled:shadow-none"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
               </button>
             </div>
           </div>
@@ -4166,7 +4168,7 @@ function App() {
         </main>
         <Footer />
         <ToastContainer />
-        <ChatBot />
+        <AlgerianBot />
         {/* Firebase status indicator */}
         <button onClick={handleReset} className="fixed bottom-4 right-4 z-40 px-3 py-1.5 bg-ink-0/70 dark:bg-surface-0/70 backdrop-blur-sm text-surface-2 dark:text-ink-3 text-[10px] font-medium rounded-full hover:bg-red-600 hover:text-white transition-colors" title="Click to reset Firebase config">
           Firebase Connected
