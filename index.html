@@ -1082,15 +1082,6 @@ function Navbar() {
             <span className="font-display font-bold text-xl tracking-tight text-ink-0 dark:text-surface-1">{siteSettings.siteName || 'MarketHub'}</span>
           </button>
 
-          {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-1">
-            {[['home','nav_home'],['browse','nav_browse'],['freelance','nav_services'],['jobs','nav_jobs']].map(([page, key]) => (
-              <button key={page} onClick={() => navigate(page)} className="px-4 py-2 text-sm font-medium text-ink-3 dark:text-surface-3 hover:text-ink-0 dark:hover:text-surface-1 rounded-lg hover:bg-ink-0/5 dark:hover:bg-surface-1/5 transition-all">
-                {t(key)}
-              </button>
-            ))}
-          </div>
-
           {/* Right */}
           <div className="flex items-center gap-2">
             <button onClick={toggleTheme} aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'} className="p-2.5 rounded-xl hover:bg-ink-0/5 dark:hover:bg-surface-1/10 transition-colors text-ink-3 dark:text-surface-3">
@@ -4195,6 +4186,7 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
