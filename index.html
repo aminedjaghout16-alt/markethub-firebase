@@ -19,7 +19,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Playfair+Display:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script>
 tailwind.config = {
   darkMode: 'class',
@@ -163,6 +163,25 @@ body { font-family: 'DM Sans', sans-serif; overflow-x: hidden; }
 /* INTERSECTION OBSERVER */
 .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
 .reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* RTL (Arabic) SUPPORT */
+[dir="rtl"] body, [dir="rtl"] .font-body { font-family: 'Tajawal', 'DM Sans', sans-serif; }
+[dir="rtl"] .font-display { font-family: 'Tajawal', 'Playfair Display', serif; }
+[dir="rtl"] { text-align: right; }
+/* Flip horizontal spacing utilities so icon/text gaps and paddings mirror correctly */
+[dir="rtl"] .space-x-1 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-2 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-3 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-6 > :not([hidden]) ~ :not([hidden]) { --tw-space-x-reverse: 1; }
+[dir="rtl"] .text-left { text-align: right; }
+[dir="rtl"] .text-right { text-align: left; }
+[dir="rtl"] .left-0 { left: auto; right: 0; }
+[dir="rtl"] .right-0 { right: auto; left: 0; }
+[dir="rtl"] .ml-1, [dir="rtl"] .ml-2, [dir="rtl"] .ml-3 { margin-left: 0; margin-right: 0.5rem; }
+[dir="rtl"] .mr-1, [dir="rtl"] .mr-2, [dir="rtl"] .mr-3 { margin-right: 0; margin-left: 0.5rem; }
+[dir="rtl"] .rtl-flip { transform: scaleX(-1); }
+[dir="rtl"] input, [dir="rtl"] textarea, [dir="rtl"] select { text-align: right; }
 </style>
 </head>
 <body class="bg-surface-1 dark:bg-ink-0 text-ink-0 dark:text-surface-2 font-body theme-transition">
@@ -177,6 +196,79 @@ const CATEGORIES = [];
 const LISTINGS = [];
 
 const TESTIMONIALS = [];
+
+// ==================== TRANSLATIONS ====================
+// Covers site chrome (nav, footer, buttons, forms, page titles). User-generated content
+// (listings, messages, usernames) is left as entered — translating that would require a
+// translation API per piece of content, not a static dictionary.
+const TRANSLATIONS = {
+  en: {
+    nav_home: 'Home', nav_browse: 'Browse', nav_services: 'Services', nav_jobs: 'Jobs', nav_sell: 'Sell',
+    nav_login: 'Log In', nav_signup: 'Sign Up', nav_logout: 'Log Out', nav_admin_panel: 'Admin Panel',
+    nav_my_profile: 'My Profile', nav_seller_dashboard: 'Seller Dashboard', nav_saved_listings: 'Saved Listings', nav_settings: 'Settings',
+    btn_save: 'Save', btn_cancel: 'Cancel', btn_send: 'Send', btn_close: 'Close', btn_contact: 'Contact', btn_saving: 'Saving...',
+    footer_marketplace: 'Marketplace', footer_company: 'Company', footer_support: 'Support', footer_language: 'Language',
+    footer_browse_all: 'Browse All', footer_trending: 'Trending', footer_featured: 'Featured', footer_categories: 'Categories',
+    footer_about: 'About Us', footer_careers: 'Careers', footer_press: 'Press', footer_blog: 'Blog',
+    footer_help: 'Help Center', footer_safety: 'Safety', footer_terms: 'Terms', footer_privacy: 'Privacy',
+    footer_rights: 'All rights reserved.',
+    hero_cta_browse: 'Browse Listings', hero_cta_sell: 'Start Selling',
+    browse_title: 'Browse All', browse_filters: 'Filters', browse_trending: 'Trending', browse_featured_only: 'Featured only',
+    browse_sort_newest: 'Newest First', browse_sort_price_low: 'Price: Low to High', browse_sort_price_high: 'Price: High to Low', browse_sort_popular: 'Most Popular',
+    login_title: 'Welcome back', register_title: 'Create your account',
+    messages_title: 'Messages', saved_title: 'Saved Listings', seller_dashboard_title: 'Seller Dashboard',
+    settings_title: 'Settings', settings_dark_mode: 'Dark Mode', settings_dark_mode_desc: 'Toggle dark theme',
+    settings_language: 'Language', settings_language_desc: 'Interface translations',
+    settings_notifications: 'Notifications', settings_danger_zone: 'Danger Zone',
+    settings_delete_account: 'Delete Account', settings_save_changes: 'Save Changes', settings_admin_panel: 'Go to Admin Panel',
+    about_title: 'About', careers_title: 'Careers', press_title: 'Press', blog_title: 'Blog',
+    help_title: 'Help Center', safety_title: 'Safety Center', terms_title: 'Terms of Service', privacy_title: 'Privacy Policy',
+  },
+  fr: {
+    nav_home: 'Accueil', nav_browse: 'Parcourir', nav_services: 'Services', nav_jobs: 'Emplois', nav_sell: 'Vendre',
+    nav_login: 'Connexion', nav_signup: "S'inscrire", nav_logout: 'Déconnexion', nav_admin_panel: 'Panneau admin',
+    nav_my_profile: 'Mon profil', nav_seller_dashboard: 'Tableau de bord vendeur', nav_saved_listings: 'Annonces enregistrées', nav_settings: 'Paramètres',
+    btn_save: 'Enregistrer', btn_cancel: 'Annuler', btn_send: 'Envoyer', btn_close: 'Fermer', btn_contact: 'Contacter', btn_saving: 'Enregistrement...',
+    footer_marketplace: 'Marché', footer_company: 'Entreprise', footer_support: 'Assistance', footer_language: 'Langue',
+    footer_browse_all: 'Tout parcourir', footer_trending: 'Tendances', footer_featured: 'En vedette', footer_categories: 'Catégories',
+    footer_about: 'À propos', footer_careers: 'Carrières', footer_press: 'Presse', footer_blog: 'Blog',
+    footer_help: "Centre d'aide", footer_safety: 'Sécurité', footer_terms: "Conditions d'utilisation", footer_privacy: 'Confidentialité',
+    footer_rights: 'Tous droits réservés.',
+    hero_cta_browse: 'Parcourir les annonces', hero_cta_sell: 'Commencer à vendre',
+    browse_title: 'Tout parcourir', browse_filters: 'Filtres', browse_trending: 'Tendances', browse_featured_only: 'En vedette uniquement',
+    browse_sort_newest: 'Plus récent', browse_sort_price_low: 'Prix : croissant', browse_sort_price_high: 'Prix : décroissant', browse_sort_popular: 'Plus populaire',
+    login_title: 'Content de vous revoir', register_title: 'Créer votre compte',
+    messages_title: 'Messages', saved_title: 'Annonces enregistrées', seller_dashboard_title: 'Tableau de bord vendeur',
+    settings_title: 'Paramètres', settings_dark_mode: 'Mode sombre', settings_dark_mode_desc: 'Activer le thème sombre',
+    settings_language: 'Langue', settings_language_desc: "Traductions de l'interface",
+    settings_notifications: 'Notifications', settings_danger_zone: 'Zone de danger',
+    settings_delete_account: 'Supprimer le compte', settings_save_changes: 'Enregistrer les modifications', settings_admin_panel: 'Accéder au panneau admin',
+    about_title: 'À propos', careers_title: 'Carrières', press_title: 'Presse', blog_title: 'Blog',
+    help_title: "Centre d'aide", safety_title: 'Centre de sécurité', terms_title: "Conditions d'utilisation", privacy_title: 'Politique de confidentialité',
+  },
+  ar: {
+    nav_home: 'الرئيسية', nav_browse: 'تصفح', nav_services: 'الخدمات', nav_jobs: 'الوظائف', nav_sell: 'بيع',
+    nav_login: 'تسجيل الدخول', nav_signup: 'إنشاء حساب', nav_logout: 'تسجيل الخروج', nav_admin_panel: 'لوحة الإدارة',
+    nav_my_profile: 'ملفي الشخصي', nav_seller_dashboard: 'لوحة تحكم البائع', nav_saved_listings: 'الإعلانات المحفوظة', nav_settings: 'الإعدادات',
+    btn_save: 'حفظ', btn_cancel: 'إلغاء', btn_send: 'إرسال', btn_close: 'إغلاق', btn_contact: 'تواصل', btn_saving: 'جارٍ الحفظ...',
+    footer_marketplace: 'السوق', footer_company: 'الشركة', footer_support: 'الدعم', footer_language: 'اللغة',
+    footer_browse_all: 'تصفح الكل', footer_trending: 'الأكثر رواجاً', footer_featured: 'مميز', footer_categories: 'الفئات',
+    footer_about: 'من نحن', footer_careers: 'وظائف الشركة', footer_press: 'الصحافة', footer_blog: 'المدونة',
+    footer_help: 'مركز المساعدة', footer_safety: 'الأمان', footer_terms: 'شروط الخدمة', footer_privacy: 'الخصوصية',
+    footer_rights: 'جميع الحقوق محفوظة.',
+    hero_cta_browse: 'تصفح الإعلانات', hero_cta_sell: 'ابدأ البيع',
+    browse_title: 'تصفح الكل', browse_filters: 'الفلاتر', browse_trending: 'الأكثر رواجاً', browse_featured_only: 'المميز فقط',
+    browse_sort_newest: 'الأحدث', browse_sort_price_low: 'السعر: من الأقل إلى الأعلى', browse_sort_price_high: 'السعر: من الأعلى إلى الأقل', browse_sort_popular: 'الأكثر شعبية',
+    login_title: 'مرحباً بعودتك', register_title: 'أنشئ حسابك',
+    messages_title: 'الرسائل', saved_title: 'الإعلانات المحفوظة', seller_dashboard_title: 'لوحة تحكم البائع',
+    settings_title: 'الإعدادات', settings_dark_mode: 'الوضع الداكن', settings_dark_mode_desc: 'تفعيل المظهر الداكن',
+    settings_language: 'اللغة', settings_language_desc: 'ترجمات الواجهة',
+    settings_notifications: 'الإشعارات', settings_danger_zone: 'منطقة الخطر',
+    settings_delete_account: 'حذف الحساب', settings_save_changes: 'حفظ التغييرات', settings_admin_panel: 'الذهاب إلى لوحة الإدارة',
+    about_title: 'من نحن', careers_title: 'وظائف الشركة', press_title: 'الصحافة', blog_title: 'المدونة',
+    help_title: 'مركز المساعدة', safety_title: 'مركز الأمان', terms_title: 'شروط الخدمة', privacy_title: 'سياسة الخصوصية',
+  },
+};
 
 // ==================== OWNER-ONLY LOCK ====================
 // Only this exact Firebase UID can access Categories & Site Settings in the admin panel.
@@ -629,8 +721,21 @@ const AppContext = createContext();
 
 function AppProvider({ children }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('mh-theme') || 'light');
+  const [lang, setLang] = useState(() => localStorage.getItem('mh-lang') || 'en');
+  const isRTL = lang === 'ar';
+
+  useEffect(() => {
+    localStorage.setItem('mh-lang', lang);
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  }, [lang]);
+
+  const t = useCallback((key) => (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || TRANSLATIONS.en[key] || key, [lang]);
+
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [initialSort, setInitialSort] = useState(null);
+  const [initialFeaturedOnly, setInitialFeaturedOnly] = useState(false);
   const [selectedListing, setSelectedListing] = useState(null);
   const [profileUserId, setProfileUserId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -820,6 +925,8 @@ function AppProvider({ children }) {
   const navigate = useCallback((page, data = {}) => {
     setCurrentPage(page);
     if (data.category) setSelectedCategory(data.category);
+    if (data.sort) setInitialSort(data.sort);
+    if (data.featuredOnly) setInitialFeaturedOnly(true);
     if (page === 'profile') setProfileUserId(data.userId || null);
     if (data.listing) {
       setSelectedListing(data.listing);
@@ -837,6 +944,8 @@ function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       theme, toggleTheme, currentPage, navigate, selectedCategory, setSelectedCategory,
+      lang, setLang, t, isRTL,
+      initialSort, setInitialSort, initialFeaturedOnly, setInitialFeaturedOnly,
       selectedListing, setSelectedListing, searchQuery, setSearchQuery, toasts,
       savedListings, toggleSave, isLoggedIn, setIsLoggedIn, currentUser, setCurrentUser,
       addToast, messages, setMessages, chatMessages, setChatMessages,
@@ -868,9 +977,9 @@ const Icons = {
   Message: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
   User: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   Plus: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
-  ChevronRight: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>,
+  ChevronRight: ({className}) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className}><path d="M9 18l6-6-6-6"/></svg>,
   ChevronDown: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>,
-  ArrowLeft: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>,
+  ArrowLeft: ({className}) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>,
   Eye: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
   Upload: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>,
   Send: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>,
@@ -910,7 +1019,7 @@ function ToastContainer() {
 
 // ==================== NAVBAR ====================
 function Navbar() {
-  const { theme, toggleTheme, navigate, isLoggedIn, handleLogout, addToast, savedListings, messages, currentUser, siteSettings } = useApp();
+  const { theme, toggleTheme, navigate, isLoggedIn, handleLogout, addToast, savedListings, messages, currentUser, siteSettings, t } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -936,9 +1045,9 @@ function Navbar() {
 
           {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-1">
-            {[['home','Home'],['browse','Browse'],['freelance','Services'],['jobs','Jobs']].map(([page, label]) => (
+            {[['home','nav_home'],['browse','nav_browse'],['freelance','nav_services'],['jobs','nav_jobs']].map(([page, key]) => (
               <button key={page} onClick={() => navigate(page)} className="px-4 py-2 text-sm font-medium text-ink-3 dark:text-surface-3 hover:text-ink-0 dark:hover:text-surface-1 rounded-lg hover:bg-ink-0/5 dark:hover:bg-surface-1/5 transition-all">
-                {label}
+                {t(key)}
               </button>
             ))}
           </div>
@@ -960,7 +1069,7 @@ function Navbar() {
                   {savedListings.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{savedListings.length}</span>}
                 </button>
                 <button onClick={() => navigate('create')} className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-sm font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20 hover:shadow-brand-500/30">
-                  <Icons.Plus /> <span>Sell</span>
+                  <Icons.Plus /> <span>{t('nav_sell')}</span>
                 </button>
                 <div className="relative">
                   <button onClick={() => setProfileOpen(!profileOpen)} aria-label="Open profile menu" aria-expanded={profileOpen} className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-transparent hover:ring-brand-400 transition-all">
@@ -972,15 +1081,15 @@ function Navbar() {
                         <p className="font-semibold text-sm">{currentUser?.name || 'User'}</p>
                         <p className="text-xs text-ink-4 dark:text-surface-4">{currentUser?.email || ''}</p>
                       </div>
-                      {currentUser?.role === 'ADMIN' && <button onClick={() => { navigate('admin'); setProfileOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm font-semibold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/20 transition-colors">⚙️ Admin Panel</button>}
-                      {[['profile','My Profile'],['seller-dashboard','Seller Dashboard'],['saved','Saved Listings'],['settings','Settings']].map(([page, label]) => (
+                      {currentUser?.role === 'ADMIN' && <button onClick={() => { navigate('admin'); setProfileOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm font-semibold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/20 transition-colors">⚙️ {t('nav_admin_panel')}</button>}
+                      {[['profile','nav_my_profile'],['seller-dashboard','nav_seller_dashboard'],['saved','nav_saved_listings'],['settings','nav_settings']].map(([page, key]) => (
                         <button key={page} onClick={() => { navigate(page); setProfileOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-ink-0/5 dark:hover:bg-surface-1/5 transition-colors">
-                          {label}
+                          {t(key)}
                         </button>
                       ))}
                       <div className="border-t border-ink-0/5 dark:border-surface-1/10 mt-1 pt-1">
                         <button onClick={() => { handleLogout(); setProfileOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
-                          Log Out
+                          {t('nav_logout')}
                         </button>
                       </div>
                     </div>
@@ -990,10 +1099,10 @@ function Navbar() {
             ) : (
               <div className="hidden sm:flex items-center gap-2">
                 <button onClick={() => navigate('login')} className="px-4 py-2 text-sm font-medium text-ink-3 dark:text-surface-3 hover:text-ink-0 dark:hover:text-surface-1 rounded-xl transition-colors">
-                  Log In
+                  {t('nav_login')}
                 </button>
                 <button onClick={() => navigate('register')} className="px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-sm font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20">
-                  Sign Up
+                  {t('nav_signup')}
                 </button>
               </div>
             )}
@@ -1165,7 +1274,7 @@ function SectionHeading({ title, subtitle, action, onAction }) {
       </div>
       {action && (
         <button onClick={onAction} className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-500 transition-colors">
-          {action} <Icons.ChevronRight />
+          {action} <Icons.ChevronRight className="rtl-flip" />
         </button>
       )}
     </div>
@@ -1369,24 +1478,31 @@ function HomePage() {
 
 // ==================== BROWSE PAGE ====================
 function BrowsePage() {
-  const { navigate, selectedCategory, setSelectedCategory, searchQuery, setSearchQuery, listings, categories } = useApp();
+  const { navigate, selectedCategory, setSelectedCategory, searchQuery, setSearchQuery, listings, categories, initialSort, setInitialSort, initialFeaturedOnly, setInitialFeaturedOnly, t } = useApp();
   const [priceRange, setPriceRange] = useState([0, 100000]);
   const [sortBy, setSortBy] = useState('newest');
+  const [featuredOnly, setFeaturedOnly] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    if (initialSort) { setSortBy(initialSort); setInitialSort(null); }
+    if (initialFeaturedOnly) { setFeaturedOnly(true); setInitialFeaturedOnly(false); }
+  }, [initialSort, initialFeaturedOnly]);
 
   const allListings = listings.length > 0 ? listings : LISTINGS;
 
   const filtered = useMemo(() => {
     let list = [...allListings];
     if (selectedCategory) list = list.filter(l => l.category === selectedCategory);
+    if (featuredOnly) list = list.filter(l => l.featured);
     if (searchQuery) list = list.filter(l => (l.title||'').toLowerCase().includes(searchQuery.toLowerCase()) || (l.seller||l.sellerName||'').toLowerCase().includes(searchQuery.toLowerCase()));
     list = list.filter(l => l.price >= priceRange[0] && l.price <= priceRange[1]);
     if (sortBy === 'price-low') list.sort((a, b) => a.price - b.price);
     else if (sortBy === 'price-high') list.sort((a, b) => b.price - a.price);
     else if (sortBy === 'popular') list.sort((a, b) => b.views - a.views);
     return list;
-  }, [selectedCategory, searchQuery, priceRange, sortBy, allListings]);
+  }, [selectedCategory, featuredOnly, searchQuery, priceRange, sortBy, allListings]);
 
   const activeCategory = categories.find(c => c.id === selectedCategory);
 
@@ -1394,28 +1510,35 @@ function BrowsePage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-ink-4 dark:text-surface-4 mb-6 animate-fadeIn">
-        <button onClick={() => { setSelectedCategory(null); navigate('home'); }} className="hover:text-brand-500 transition-colors">Home</button>
-        <Icons.ChevronRight />
-        <span className="text-ink-1 dark:text-surface-2 font-medium">{activeCategory ? activeCategory.name : searchQuery ? `Search: "${searchQuery}"` : 'All Categories'}</span>
+        <button onClick={() => { setSelectedCategory(null); navigate('home'); }} className="hover:text-brand-500 transition-colors">{t('nav_home')}</button>
+        <Icons.ChevronRight className="rtl-flip" />
+        <span className="text-ink-1 dark:text-surface-2 font-medium">{activeCategory ? activeCategory.name : searchQuery ? `Search: "${searchQuery}"` : t('footer_categories')}</span>
       </div>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 animate-fadeInUp">
         <div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold text-ink-0 dark:text-surface-1">
-            {activeCategory ? activeCategory.name : searchQuery ? 'Search Results' : 'Browse All'}
+            {activeCategory ? activeCategory.name : searchQuery ? 'Search Results' : featuredOnly ? t('footer_featured') : sortBy === 'popular' ? t('browse_trending') : t('browse_title')}
           </h1>
-          <p className="text-ink-4 dark:text-surface-4 mt-1">{filtered.length} listings found</p>
+          <p className="text-ink-4 dark:text-surface-4 mt-1">
+            {filtered.length} listings found
+            {featuredOnly && (
+              <button onClick={() => setFeaturedOnly(false)} className="ml-2 inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-950/50 transition-colors">
+                {t('browse_featured_only')} <span aria-hidden="true">×</span>
+              </button>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={() => setFiltersOpen(!filtersOpen)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 text-sm font-medium hover:border-brand-300 dark:hover:border-brand-700 transition-colors">
-            <Icons.Filter /> Filters
+            <Icons.Filter /> {t('browse_filters')}
           </button>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="px-4 py-2.5 rounded-xl border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 text-sm font-medium outline-none appearance-none cursor-pointer">
-            <option value="newest">Newest First</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="popular">Most Popular</option>
+            <option value="newest">{t('browse_sort_newest')}</option>
+            <option value="price-low">{t('browse_sort_price_low')}</option>
+            <option value="price-high">{t('browse_sort_price_high')}</option>
+            <option value="popular">{t('browse_sort_popular')}</option>
           </select>
           <div className="hidden sm:flex items-center gap-1 p-1 rounded-xl border border-ink-0/10 dark:border-surface-1/10">
             <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-brand-500 text-white' : 'text-ink-4 hover:text-ink-1'}`}><Icons.Grid /></button>
@@ -1591,7 +1714,7 @@ function ListingDetailPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
       {/* Breadcrumb */}
       <button onClick={() => navigate('browse')} className="flex items-center gap-1.5 text-sm text-ink-4 dark:text-surface-4 hover:text-brand-500 mb-6 transition-colors">
-        <Icons.ArrowLeft /> Back to listings
+        <Icons.ArrowLeft className="rtl-flip" /> Back to listings
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -2252,7 +2375,7 @@ function MessagesPage() {
             <>
               {/* Chat Header */}
               <div className="flex items-center gap-3 p-4 border-b border-ink-0/5 dark:border-surface-1/5">
-                <button onClick={() => setActiveConvId(null)} aria-label="Back to conversation list" className="md:hidden text-ink-4"><Icons.ArrowLeft /></button>
+                <button onClick={() => setActiveConvId(null)} aria-label="Back to conversation list" className="md:hidden text-ink-4"><Icons.ArrowLeft className="rtl-flip" /></button>
                 <img src={activeConv.avatar} alt={`${activeConv.from}'s profile photo`} className="w-9 h-9 rounded-full object-cover" />
                 <div className="flex-1">
                   <p className="font-semibold text-sm">{activeConv.from}</p>
@@ -3325,11 +3448,10 @@ function ProfilePage() {
 }
 
 function SettingsPage() {
-  const { isLoggedIn, navigate, addToast, theme, toggleTheme, currentUser, handleLogout } = useApp();
+  const { isLoggedIn, navigate, addToast, theme, toggleTheme, currentUser, handleLogout, lang, setLang, t } = useApp();
   const [name, setName] = useState(currentUser?.name || '');
   const [email, setEmail] = useState(currentUser?.email || '');
   const [bio, setBio] = useState('');
-  const [lang, setLang] = useState('en');
   const [notifs, setNotifs] = useState({ email: true, push: true, marketing: false });
   const [saving, setSaving] = useState(false);
 
@@ -3353,7 +3475,7 @@ function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 animate-fadeIn">
-      <h1 className="font-display text-3xl font-bold text-ink-0 dark:text-surface-1 mb-8">Settings</h1>
+      <h1 className="font-display text-3xl font-bold text-ink-0 dark:text-surface-1 mb-8">{t('settings_title')}</h1>
 
       <div className="space-y-6">
         {/* Profile */}
@@ -3380,17 +3502,17 @@ function SettingsPage() {
           <h3 className="font-semibold text-ink-0 dark:text-surface-1 mb-4">Preferences</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div><p className="font-medium text-sm">Dark Mode</p><p className="text-xs text-ink-4 dark:text-surface-4">Toggle dark theme</p></div>
+              <div><p className="font-medium text-sm">{t('settings_dark_mode')}</p><p className="text-xs text-ink-4 dark:text-surface-4">{t('settings_dark_mode_desc')}</p></div>
               <button onClick={toggleTheme} className={`w-12 h-6 rounded-full transition-all ${theme === 'dark' ? 'bg-brand-500' : 'bg-ink-0/10 dark:bg-surface-1/20'} relative`}>
                 <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${theme === 'dark' ? 'left-7' : 'left-1'}`} />
               </button>
             </div>
             <div className="flex items-center justify-between">
-              <div><p className="font-medium text-sm">Language</p><p className="text-xs text-ink-4 dark:text-surface-4">Interface translations are coming soon</p></div>
+              <div><p className="font-medium text-sm">{t('settings_language')}</p><p className="text-xs text-ink-4 dark:text-surface-4">{t('settings_language_desc')}</p></div>
               <select value={lang} onChange={e => setLang(e.target.value)} className="px-3 py-1.5 rounded-lg border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-2 text-sm outline-none">
                 <option value="en">English</option>
-                <option value="fr" disabled>Français (soon)</option>
-                <option value="ar" disabled>العربية (soon)</option>
+                <option value="fr">Français</option>
+                <option value="ar">العربية</option>
               </select>
             </div>
           </div>
@@ -3398,7 +3520,7 @@ function SettingsPage() {
 
         {/* Notifications */}
         <div className="bg-surface-0 dark:bg-ink-1 rounded-2xl border border-ink-0/5 dark:border-surface-1/5 p-6">
-          <h3 className="font-semibold text-ink-0 dark:text-surface-1 mb-4">Notifications</h3>
+          <h3 className="font-semibold text-ink-0 dark:text-surface-1 mb-4">{t('settings_notifications')}</h3>
           <div className="space-y-3">
             {[{key:'email',label:'Email Notifications',desc:'Receive updates via email'},{key:'push',label:'Push Notifications',desc:'Browser push notifications'},{key:'marketing',label:'Marketing Emails',desc:'Promotional offers and news'}].map(n => (
               <div key={n.key} className="flex items-center justify-between">
@@ -3413,21 +3535,182 @@ function SettingsPage() {
 
         {/* Danger Zone */}
         <div className="bg-red-50/50 dark:bg-red-950/10 rounded-2xl border border-red-200/30 dark:border-red-800/20 p-6">
-          <h3 className="font-semibold text-red-600 dark:text-red-400 mb-2">Danger Zone</h3>
+          <h3 className="font-semibold text-red-600 dark:text-red-400 mb-2">{t('settings_danger_zone')}</h3>
           <p className="text-sm text-ink-4 dark:text-surface-4 mb-4">Once you delete your account, there is no going back.</p>
-          <button className="px-4 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm font-medium rounded-xl hover:bg-red-100 dark:hover:bg-red-950/30 transition-colors">Delete Account</button>
+          <button className="px-4 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm font-medium rounded-xl hover:bg-red-100 dark:hover:bg-red-950/30 transition-colors">{t('settings_delete_account')}</button>
         </div>
 
-        <button onClick={handleSave} disabled={saving} className="w-full py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50">{saving ? 'Saving...' : 'Save Changes'}</button>
-        <button onClick={() => navigate('admin')} className="w-full py-3 border border-brand-300 dark:border-brand-700 text-brand-600 dark:text-brand-400 font-semibold rounded-xl hover:bg-brand-50 dark:hover:bg-brand-950/20 transition-all">⚙️ Go to Admin Panel</button>
+        <button onClick={handleSave} disabled={saving} className="w-full py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl hover:from-brand-600 hover:to-brand-700 transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50">{saving ? t('btn_saving') : t('settings_save_changes')}</button>
+        <button onClick={() => navigate('admin')} className="w-full py-3 border border-brand-300 dark:border-brand-700 text-brand-600 dark:text-brand-400 font-semibold rounded-xl hover:bg-brand-50 dark:hover:bg-brand-950/20 transition-all">⚙️ {t('settings_admin_panel')}</button>
       </div>
     </div>
   );
 }
 
+// ==================== STATIC CONTENT PAGES ====================
+function StaticPage({ title, subtitle, children }) {
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16 animate-fadeIn">
+      <h1 className="font-display text-3xl sm:text-4xl font-bold text-ink-0 dark:text-surface-1 mb-2">{title}</h1>
+      {subtitle && <p className="text-ink-4 dark:text-surface-4 mb-8">{subtitle}</p>}
+      <div className="space-y-6 text-sm sm:text-base text-ink-3 dark:text-surface-3 leading-relaxed [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-ink-0 [&_h2]:dark:text-surface-1 [&_h2]:mt-8 [&_h2]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AboutPage() {
+  const { siteSettings, navigate, t } = useApp();
+  const name = siteSettings.siteName || 'MarketHub';
+  return (
+    <StaticPage title={`${t('about_title')} ${name}`} subtitle="The modern marketplace for buying, selling, and offering services across every niche.">
+      <p>{name} connects buyers, sellers, and service providers in one place — from physical goods to freelance work. Our goal is to make it simple to list something, find something, and close the deal safely.</p>
+      <h2>What we're building</h2>
+      <p>A single marketplace that works whether you're selling a used bike, hiring a designer, or posting a job — with the same trust and safety standards across every category.</p>
+      <h2>Get in touch</h2>
+      <p>Have a question or a partnership idea? Reach out through our <button onClick={() => navigate('help')} className="text-brand-500 hover:underline font-medium">Help Center</button>.</p>
+    </StaticPage>
+  );
+}
+
+function CareersPage() {
+  const { siteSettings, t } = useApp();
+  const name = siteSettings.siteName || 'MarketHub';
+  return (
+    <StaticPage title={t('careers_title')} subtitle={`Help us build the marketplace we all want to use.`}>
+      <p>{name} is a small, fast-moving team. We don't have open roles listed here yet, but we're always happy to hear from people who care about marketplaces, trust & safety, or great product design.</p>
+      <h2>How to reach us</h2>
+      <p>Send a note with what you'd want to work on, and we'll follow up when a relevant role opens.</p>
+    </StaticPage>
+  );
+}
+
+function PressPage() {
+  const { siteSettings, t } = useApp();
+  const name = siteSettings.siteName || 'MarketHub';
+  return (
+    <StaticPage title={t('press_title')} subtitle="Media resources and company information.">
+      <p>For interview requests, brand assets, or fact-checking, please get in touch via our Help Center. We'll get back to you as soon as we can.</p>
+      <h2>Quick facts</h2>
+      <ul>
+        <li>{name} is a multi-category marketplace covering goods, services, and jobs.</li>
+        <li>Listings are moderated before appearing publicly.</li>
+      </ul>
+    </StaticPage>
+  );
+}
+
+function BlogPage() {
+  const { navigate, t } = useApp();
+  const posts = [
+    { title: 'Getting the most out of your first listing', desc: 'A few small changes that make listings get noticed faster.' },
+    { title: 'How our moderation queue works', desc: 'What happens between "submit" and "live" for every listing.' },
+    { title: 'Tips for staying safe when buying and selling', desc: 'Practical habits that keep transactions smooth.' },
+  ];
+  return (
+    <StaticPage title={t('blog_title')} subtitle="Notes on the marketplace, product updates, and seller tips.">
+      <div className="space-y-4 not-prose">
+        {posts.map(p => (
+          <div key={p.title} className="p-5 rounded-2xl border border-ink-0/5 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1 card-hover">
+            <h3 className="font-display font-bold text-lg text-ink-0 dark:text-surface-1 mb-1">{p.title}</h3>
+            <p className="text-sm text-ink-4 dark:text-surface-4">{p.desc}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-sm text-ink-5 dark:text-surface-4 pt-2">More posts coming soon. Check back or visit our <button onClick={() => navigate('help')} className="text-brand-500 hover:underline font-medium">Help Center</button> for immediate answers.</p>
+    </StaticPage>
+  );
+}
+
+function HelpCenterPage() {
+  const { navigate, t } = useApp();
+  const faqs = [
+    { q: 'How do I create a listing?', a: 'Log in, then select "Sell" from the top navigation. Fill in the details and submit — listings go through a quick moderation check before going live.' },
+    { q: 'How do I contact a seller?', a: 'Open any listing and use the "Contact" button to send a message. Replies show up in your Messages inbox.' },
+    { q: 'How do I report a listing or user?', a: 'Open the listing and use the report option, or reach out to us directly with the listing link and a description of the issue.' },
+    { q: 'How do I save a listing for later?', a: 'Click the heart icon on any listing card. Saved listings appear under "Saved" in your account menu.' },
+    { q: 'I forgot my password — what now?', a: 'Use the "Forgot password" link on the login page to reset it via email.' },
+  ];
+  return (
+    <StaticPage title={t('help_title')} subtitle="Answers to common questions.">
+      <div className="space-y-3 not-prose">
+        {faqs.map(f => (
+          <details key={f.q} className="group p-4 rounded-xl border border-ink-0/5 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-1">
+            <summary className="cursor-pointer font-semibold text-sm text-ink-0 dark:text-surface-1 list-none flex items-center justify-between">
+              {f.q}
+              <span className="text-ink-4 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p className="text-sm text-ink-4 dark:text-surface-4 mt-2">{f.a}</p>
+          </details>
+        ))}
+      </div>
+      <p className="text-sm pt-2">Still stuck? See our <button onClick={() => navigate('safety')} className="text-brand-500 hover:underline font-medium">Safety Center</button> or contact a seller/buyer directly through Messages.</p>
+    </StaticPage>
+  );
+}
+
+function SafetyPage() {
+  const { t } = useApp();
+  return (
+    <StaticPage title={t('safety_title')} subtitle="How to buy and sell with confidence.">
+      <h2>Before you buy</h2>
+      <ul>
+        <li>Check the seller's profile and past listing history.</li>
+        <li>Ask questions through Messages before paying — keep the conversation on-platform.</li>
+        <li>Be cautious of prices that seem far below market value.</li>
+      </ul>
+      <h2>Before you sell</h2>
+      <ul>
+        <li>Use clear, honest photos and descriptions.</li>
+        <li>Avoid sharing sensitive personal or financial information in chat.</li>
+        <li>Meet in public places for in-person exchanges when possible.</li>
+      </ul>
+      <h2>Reporting a problem</h2>
+      <p>Use the report option on any listing or profile if something looks wrong. Our moderation team reviews reports and can remove listings or suspend accounts that violate our guidelines.</p>
+    </StaticPage>
+  );
+}
+
+function TermsPage() {
+  const { siteSettings, t } = useApp();
+  const name = siteSettings.siteName || 'MarketHub';
+  return (
+    <StaticPage title={t('terms_title')} subtitle="Last updated: placeholder — replace with your actual effective date.">
+      <p className="p-4 rounded-xl bg-brand-50 dark:bg-brand-950/20 border border-brand-200/50 dark:border-brand-800/30 text-sm text-brand-700 dark:text-brand-400">
+        This is placeholder legal content, not a finished legal document. Replace this page with terms reviewed by a lawyer before running {name} as a real, live marketplace.
+      </p>
+      <h2>Using {name}</h2>
+      <p>By creating an account or browsing listings, you agree to use the platform honestly and in accordance with applicable law — no fraudulent listings, prohibited goods, or abusive behavior toward other users.</p>
+      <h2>Listings</h2>
+      <p>Sellers are responsible for the accuracy of their listings. {name} may remove listings or suspend accounts that violate these terms or our Safety guidelines.</p>
+      <h2>Liability</h2>
+      <p>{name} provides the platform "as is" and is not a party to transactions between buyers and sellers.</p>
+    </StaticPage>
+  );
+}
+
+function PrivacyPage() {
+  const { siteSettings, t } = useApp();
+  const name = siteSettings.siteName || 'MarketHub';
+  return (
+    <StaticPage title={t('privacy_title')} subtitle="Last updated: placeholder — replace with your actual effective date.">
+      <p className="p-4 rounded-xl bg-brand-50 dark:bg-brand-950/20 border border-brand-200/50 dark:border-brand-800/30 text-sm text-brand-700 dark:text-brand-400">
+        This is placeholder legal content, not a finished legal document. Replace this page with a privacy policy reviewed by a lawyer that accurately describes {name}'s real data practices before launch.
+      </p>
+      <h2>What we collect</h2>
+      <p>Account details (name, email), listing content, and basic usage data needed to run the marketplace (e.g. messages between buyers and sellers, saved listings).</p>
+      <h2>How we use it</h2>
+      <p>To operate your account, display your listings, connect you with other users, and keep the platform safe.</p>
+      <h2>Your choices</h2>
+      <p>You can update or delete your account at any time from Settings.</p>
+    </StaticPage>
+  );
+}
+
 // ==================== FOOTER ====================
 function Footer() {
-  const { navigate, siteSettings } = useApp();
+  const { navigate, siteSettings, t, lang, setLang } = useApp();
   return (
     <footer className="bg-ink-0 dark:bg-ink-1 border-t border-ink-0/5 dark:border-surface-1/5 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -3442,37 +3725,39 @@ function Footer() {
             <p className="text-sm text-ink-5 leading-relaxed">{siteSettings.tagline || 'The modern marketplace for buying, selling, and offering services across every niche.'}</p>
           </div>
           {[
-            { title: 'Marketplace', links: [['browse','Browse All',true],['browse','Trending',false],['browse','Featured',false],['browse','Categories',false]] },
-            { title: 'Company', links: [['home','About Us',false],['home','Careers',false],['home','Press',false],['home','Blog',false]] },
-            { title: 'Support', links: [['home','Help Center',false],['home','Safety',false],['home','Terms',false],['home','Privacy',false]] },
+            { title: t('footer_marketplace'), links: [['browse',t('footer_browse_all'),{}],['browse',t('footer_trending'),{sort:'popular'}],['browse',t('footer_featured'),{featuredOnly:true}],['browse',t('footer_categories'),{}]] },
+            { title: t('footer_company'), links: [['about',t('footer_about'),{}],['careers',t('footer_careers'),{}],['press',t('footer_press'),{}],['blog',t('footer_blog'),{}]] },
+            { title: t('footer_support'), links: [['help',t('footer_help'),{}],['safety',t('footer_safety'),{}],['terms',t('footer_terms'),{}],['privacy',t('footer_privacy'),{}]] },
           ].map(col => (
             <div key={col.title}>
               <h4 className="font-semibold text-sm text-surface-2 mb-4">{col.title}</h4>
               <ul className="space-y-2.5">
-                {col.links.map(([page, label, implemented]) => (
+                {col.links.map(([page, label, data]) => (
                   <li key={label}>
-                    {implemented ? (
-                      <button onClick={() => navigate(page)} className="text-sm text-ink-5 hover:text-brand-400 transition-colors">{label}</button>
-                    ) : (
-                      <span className="text-sm text-ink-5/40 cursor-default select-none" title="Coming soon">{label} <span className="text-[10px]">(soon)</span></span>
-                    )}
+                    <button onClick={() => navigate(page, data)} className="text-sm text-ink-5 hover:text-brand-400 transition-colors">{label}</button>
                   </li>
                 ))}
               </ul>
             </div>
           ))}
           <div>
-            <h4 className="font-semibold text-sm text-surface-2 mb-4">Language</h4>
+            <h4 className="font-semibold text-sm text-surface-2 mb-4">{t('footer_language')}</h4>
             <div className="flex flex-col gap-2">
-              <button className="text-sm text-brand-400 text-left font-medium" aria-current="true">English</button>
-              {['Français','العربية'].map(lang => (
-                <button key={lang} disabled title="Coming soon" className="text-sm text-ink-5/40 text-left cursor-default">{lang} <span className="text-[10px]">(soon)</span></button>
+              {[['en','English'],['fr','Français'],['ar','العربية']].map(([code, label]) => (
+                <button
+                  key={code}
+                  onClick={() => setLang(code)}
+                  aria-current={lang === code}
+                  className={`text-sm text-left transition-colors ${lang === code ? 'text-brand-400 font-semibold' : 'text-ink-5 hover:text-brand-400'}`}
+                >
+                  {label}
+                </button>
               ))}
             </div>
           </div>
         </div>
         <div className="border-t border-ink-0/10 dark:border-surface-1/5 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-ink-5">&copy; 2026 {siteSettings.siteName || 'MarketHub'}. All rights reserved.</p>
+          <p className="text-sm text-ink-5">&copy; 2026 {siteSettings.siteName || 'MarketHub'}. {t('footer_rights')}</p>
           <div className="flex gap-6">
             {['Twitter','GitHub','LinkedIn'].map(s => (
               <button key={s} className="text-sm text-ink-5 hover:text-brand-400 transition-colors">{s}</button>
@@ -3503,6 +3788,14 @@ function Router() {
     'settings': SettingsPage,
     'freelance': BrowsePage,
     'jobs': BrowsePage,
+    'about': AboutPage,
+    'careers': CareersPage,
+    'press': PressPage,
+    'blog': BlogPage,
+    'help': HelpCenterPage,
+    'safety': SafetyPage,
+    'terms': TermsPage,
+    'privacy': PrivacyPage,
   };
   const Page = pages[currentPage] || HomePage;
   return <Page />;
