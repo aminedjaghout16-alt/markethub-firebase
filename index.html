@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MarketHub — Premium Multi-Category Marketplace</title>
 <meta name="description" content="Buy, sell, and offer services across niche categories. The modern marketplace platform.">
+<meta property="og:title" content="MarketHub — Premium Multi-Category Marketplace">
+<meta property="og:description" content="Buy, sell, and offer services across niche categories. The modern marketplace platform.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MarketHub — Premium Multi-Category Marketplace">
+<meta name="twitter:description" content="Buy, sell, and offer services across niche categories. The modern marketplace platform.">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -939,17 +945,17 @@ function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-2">
-            <button onClick={toggleTheme} className="p-2.5 rounded-xl hover:bg-ink-0/5 dark:hover:bg-surface-1/10 transition-colors text-ink-3 dark:text-surface-3">
+            <button onClick={toggleTheme} aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'} className="p-2.5 rounded-xl hover:bg-ink-0/5 dark:hover:bg-surface-1/10 transition-colors text-ink-3 dark:text-surface-3">
               {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
             </button>
 
             {isLoggedIn ? (
               <>
-                <button onClick={() => navigate('messages')} className="p-2.5 rounded-xl hover:bg-ink-0/5 dark:hover:bg-surface-1/10 transition-colors text-ink-3 dark:text-surface-3 relative">
+                <button onClick={() => navigate('messages')} aria-label={`Messages${unreadMsgs > 0 ? ` (${unreadMsgs} unread)` : ''}`} className="p-2.5 rounded-xl hover:bg-ink-0/5 dark:hover:bg-surface-1/10 transition-colors text-ink-3 dark:text-surface-3 relative">
                   <Icons.Message />
                   {unreadMsgs > 0 && <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{unreadMsgs}</span>}
                 </button>
-                <button onClick={() => navigate('saved')} className="p-2.5 rounded-xl hover:bg-ink-0/5 dark:hover:bg-surface-1/10 transition-colors text-ink-3 dark:text-surface-3 relative">
+                <button onClick={() => navigate('saved')} aria-label={`Saved listings${savedListings.length > 0 ? ` (${savedListings.length})` : ''}`} className="p-2.5 rounded-xl hover:bg-ink-0/5 dark:hover:bg-surface-1/10 transition-colors text-ink-3 dark:text-surface-3 relative">
                   <Icons.Heart filled={false} />
                   {savedListings.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{savedListings.length}</span>}
                 </button>
@@ -957,8 +963,8 @@ function Navbar() {
                   <Icons.Plus /> <span>Sell</span>
                 </button>
                 <div className="relative">
-                  <button onClick={() => setProfileOpen(!profileOpen)} className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-transparent hover:ring-brand-400 transition-all">
-                    <img src={currentUser?.avatar || 'https://i.pravatar.cc/80?img=8'} alt="Profile" className="w-full h-full object-cover" />
+                  <button onClick={() => setProfileOpen(!profileOpen)} aria-label="Open profile menu" aria-expanded={profileOpen} className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-transparent hover:ring-brand-400 transition-all">
+                    <img src={currentUser?.avatar || 'https://i.pravatar.cc/80?img=8'} alt={`${currentUser?.name || 'User'}'s profile photo`} className="w-full h-full object-cover" />
                   </button>
                   {profileOpen && (
                     <div className="absolute right-0 top-12 w-56 glass rounded-2xl shadow-2xl border border-ink-0/5 dark:border-surface-1/10 py-2 animate-slideDown">
@@ -992,7 +998,7 @@ function Navbar() {
               </div>
             )}
 
-            <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden p-2 rounded-xl hover:bg-ink-0/5 dark:hover:bg-surface-1/10">
+            <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} className="lg:hidden p-2 rounded-xl hover:bg-ink-0/5 dark:hover:bg-surface-1/10">
               {mobileOpen ? <Icons.X /> : <Icons.Menu />}
             </button>
           </div>
@@ -1084,6 +1090,8 @@ function ListingCard({ listing, index = 0, onDeleted }) {
           )}
           <button
             onClick={(e) => { e.stopPropagation(); toggleSave(listing.id); }}
+            aria-label={isSaved ? 'Remove from saved listings' : 'Save listing'}
+            aria-pressed={isSaved}
             className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all ${isSaved ? 'bg-brand-500 text-white' : 'bg-white/80 dark:bg-ink-1/80 text-ink-2 dark:text-surface-2 hover:bg-white dark:hover:bg-ink-1'}`}
           >
             <Icons.Heart filled={isSaved} />
@@ -1724,7 +1732,7 @@ function ListingDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setContactOpen(false)}>
           <div className="absolute inset-0 bg-ink-0/50 backdrop-blur-sm" />
           <div className="relative bg-surface-0 dark:bg-ink-1 rounded-2xl w-full max-w-md p-6 animate-scaleIn" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setContactOpen(false)} className="absolute top-4 right-4 text-ink-4 hover:text-ink-0"><Icons.X /></button>
+            <button onClick={() => setContactOpen(false)} aria-label="Close contact dialog" className="absolute top-4 right-4 text-ink-4 hover:text-ink-0"><Icons.X /></button>
             <h3 className="font-display text-xl font-bold mb-4">Contact {sellerName}</h3>
             <p className="text-sm text-ink-4 dark:text-surface-4 mb-4">About: {l.title}</p>
             <textarea
@@ -1746,7 +1754,7 @@ function ListingDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => !reportSubmitting && setReportOpen(false)}>
           <div className="absolute inset-0 bg-ink-0/50 backdrop-blur-sm" />
           <div className="relative bg-surface-0 dark:bg-ink-1 rounded-2xl w-full max-w-md p-6 animate-scaleIn" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setReportOpen(false)} className="absolute top-4 right-4 text-ink-4 hover:text-ink-0"><Icons.X /></button>
+            <button onClick={() => setReportOpen(false)} aria-label="Close report dialog" className="absolute top-4 right-4 text-ink-4 hover:text-ink-0"><Icons.X /></button>
             <div className="flex items-center gap-2 mb-1">
               <Icons.Flag />
               <h3 className="font-display text-xl font-bold">Report Listing</h3>
@@ -2244,8 +2252,8 @@ function MessagesPage() {
             <>
               {/* Chat Header */}
               <div className="flex items-center gap-3 p-4 border-b border-ink-0/5 dark:border-surface-1/5">
-                <button onClick={() => setActiveConvId(null)} className="md:hidden text-ink-4"><Icons.ArrowLeft /></button>
-                <img src={activeConv.avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
+                <button onClick={() => setActiveConvId(null)} aria-label="Back to conversation list" className="md:hidden text-ink-4"><Icons.ArrowLeft /></button>
+                <img src={activeConv.avatar} alt={`${activeConv.from}'s profile photo`} className="w-9 h-9 rounded-full object-cover" />
                 <div className="flex-1">
                   <p className="font-semibold text-sm">{activeConv.from}</p>
                   <p className="text-[10px] text-green-500">{activeConv.online ? 'Online' : 'Offline'}</p>
@@ -3023,7 +3031,7 @@ function AdminDashboardPage() {
                   <p className="p-4 text-sm text-ink-4 dark:text-surface-4">No users yet.</p>
                 ) : recentUsers.map(u => (
                   <div key={u.uid} className="flex items-center gap-3 p-4">
-                    <img src={u.avatar || `https://i.pravatar.cc/40?u=${u.uid}`} alt="" className="w-9 h-9 rounded-full object-cover" />
+                    <img src={u.avatar || `https://i.pravatar.cc/40?u=${u.uid}`} alt={`${u.username || 'User'}'s profile photo`} className="w-9 h-9 rounded-full object-cover" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{u.username || 'User'}</p>
                       <p className="text-xs text-ink-4 dark:text-surface-4 truncate">{u.email}</p>
@@ -3047,7 +3055,7 @@ function AdminDashboardPage() {
                   <p className="p-4 text-sm text-ink-4 dark:text-surface-4">Nothing waiting for review 🎉</p>
                 ) : pendingListings.slice(0, 5).map(l => (
                   <div key={l.id} className="flex items-center gap-3 p-4">
-                    <img src={l.image} alt="" className="w-12 h-9 rounded-lg object-cover flex-shrink-0" />
+                    <img src={l.image} alt={l.title || 'Listing thumbnail'} className="w-12 h-9 rounded-lg object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{l.title}</p>
                       <p className="text-xs text-ink-4 dark:text-surface-4">{l.sellerName || 'User'} • ${Number(l.price).toLocaleString()}</p>
@@ -3378,11 +3386,11 @@ function SettingsPage() {
               </button>
             </div>
             <div className="flex items-center justify-between">
-              <div><p className="font-medium text-sm">Language</p><p className="text-xs text-ink-4 dark:text-surface-4">Select interface language</p></div>
+              <div><p className="font-medium text-sm">Language</p><p className="text-xs text-ink-4 dark:text-surface-4">Interface translations are coming soon</p></div>
               <select value={lang} onChange={e => setLang(e.target.value)} className="px-3 py-1.5 rounded-lg border border-ink-0/10 dark:border-surface-1/10 bg-surface-0 dark:bg-ink-2 text-sm outline-none">
                 <option value="en">English</option>
-                <option value="fr">Français</option>
-                <option value="ar">العربية</option>
+                <option value="fr" disabled>Français (soon)</option>
+                <option value="ar" disabled>العربية (soon)</option>
               </select>
             </div>
           </div>
@@ -3434,15 +3442,21 @@ function Footer() {
             <p className="text-sm text-ink-5 leading-relaxed">{siteSettings.tagline || 'The modern marketplace for buying, selling, and offering services across every niche.'}</p>
           </div>
           {[
-            { title: 'Marketplace', links: [['browse','Browse All'],['trending','Trending'],['featured','Featured'],['categories','Categories']] },
-            { title: 'Company', links: [['home','About Us'],['home','Careers'],['home','Press'],['home','Blog']] },
-            { title: 'Support', links: [['home','Help Center'],['home','Safety'],['home','Terms'],['home','Privacy']] },
+            { title: 'Marketplace', links: [['browse','Browse All',true],['browse','Trending',false],['browse','Featured',false],['browse','Categories',false]] },
+            { title: 'Company', links: [['home','About Us',false],['home','Careers',false],['home','Press',false],['home','Blog',false]] },
+            { title: 'Support', links: [['home','Help Center',false],['home','Safety',false],['home','Terms',false],['home','Privacy',false]] },
           ].map(col => (
             <div key={col.title}>
               <h4 className="font-semibold text-sm text-surface-2 mb-4">{col.title}</h4>
               <ul className="space-y-2.5">
-                {col.links.map(([page, label]) => (
-                  <li key={label}><button onClick={() => navigate(page)} className="text-sm text-ink-5 hover:text-brand-400 transition-colors">{label}</button></li>
+                {col.links.map(([page, label, implemented]) => (
+                  <li key={label}>
+                    {implemented ? (
+                      <button onClick={() => navigate(page)} className="text-sm text-ink-5 hover:text-brand-400 transition-colors">{label}</button>
+                    ) : (
+                      <span className="text-sm text-ink-5/40 cursor-default select-none" title="Coming soon">{label} <span className="text-[10px]">(soon)</span></span>
+                    )}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -3450,8 +3464,9 @@ function Footer() {
           <div>
             <h4 className="font-semibold text-sm text-surface-2 mb-4">Language</h4>
             <div className="flex flex-col gap-2">
-              {['English','Français','العربية'].map(lang => (
-                <button key={lang} className="text-sm text-ink-5 hover:text-brand-400 transition-colors text-left">{lang}</button>
+              <button className="text-sm text-brand-400 text-left font-medium" aria-current="true">English</button>
+              {['Français','العربية'].map(lang => (
+                <button key={lang} disabled title="Coming soon" className="text-sm text-ink-5/40 text-left cursor-default">{lang} <span className="text-[10px]">(soon)</span></button>
               ))}
             </div>
           </div>
