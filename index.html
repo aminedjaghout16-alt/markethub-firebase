@@ -1681,6 +1681,12 @@ function ListingDetailPage() {
   const [lightboxZoom, setLightboxZoom] = useState(1);
   const l = selectedListing;
 
+  // Define galleryImages early so hooks can reference it
+  const fallbackImage = 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop';
+  const galleryImages = (l && Array.isArray(l.images) && l.images.length > 0)
+    ? l.images
+    : (l?.image ? [l.image] : [fallbackImage]);
+
   useEffect(() => { setActiveImage(0); }, [l?.id]);
 
   // Keyboard navigation for lightbox
@@ -1728,12 +1734,6 @@ function ListingDetailPage() {
   const sellerName = l.seller || l.sellerName || 'Unknown';
   const allListings = listings || [];
   const similar = allListings.filter(x => x.category === l.category && x.id !== l.id).slice(0, 3);
-  const fallbackImage = 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop';
-  // Real photo gallery: prefer the images[] array (all uploaded photos), fall
-  // back to the single cover image, then to a placeholder if there's none.
-  const galleryImages = (Array.isArray(l.images) && l.images.length > 0)
-    ? l.images
-    : (l.image ? [l.image] : [fallbackImage]);
   const mainImage = galleryImages[activeImage] || galleryImages[0];
 
   const handleContact = async () => {
