@@ -1679,6 +1679,9 @@ function ListingDetailPage() {
   const [activeImage, setActiveImage] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const l = selectedListing;
 
   // Define galleryImages early so hooks can reference it
@@ -1688,6 +1691,26 @@ function ListingDetailPage() {
     : (l?.image ? [l.image] : [fallbackImage]);
 
   useEffect(() => { setActiveImage(0); }, [l?.id]);
+
+  // Reset pan when image or zoom changes
+  useEffect(() => {
+    setPanPosition({ x: 0, y: 0 });
+  }, [activeImage, lightboxZoom]);
+
+  // Mouse wheel zoom
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const handleWheel = (e) => {
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        setLightboxZoom(prev => Math.min(prev + 0.25, 3));
+      } else {
+        setLightboxZoom(prev => Math.max(prev - 0.25, 1));
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, [lightboxOpen]);
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -1719,6 +1742,59 @@ function ListingDetailPage() {
 
   const handleZoomReset = () => {
     setLightboxZoom(1);
+    setPanPosition({ x: 0, y: 0 });
+  };
+
+  // Pan/drag handlers
+  const handleMouseDown = (e) => {
+    if (lightboxZoom <= 1) return;
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || lightboxZoom <= 1) return;
+    e.preventDefault();
+    setPanPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleDoubleClick = (e) => {
+    e.stopPropagation();
+    if (lightboxZoom > 1) {
+      setLightboxZoom(1);
+      setPanPosition({ x: 0, y: 0 });
+    } else {
+      setLightboxZoom(2);
+    }
+  };
+
+  const handleTouchStart = (e) => {
+    if (lightboxZoom <= 1 || e.touches.length !== 1) return;
+    setIsDragging(true);
+    const touch = e.touches[0];
+    setDragStart({ x: touch.clientX - panPosition.x, y: touch.clientY - panPosition.y });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || lightboxZoom <= 1 || e.touches.length !== 1) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    setPanPosition({
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y
+    });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
   };
 
   if (!l) return (
@@ -2024,6 +2100,9 @@ function ListingDetailPage() {
                 <path d="M12 5v14M5 12h14"/>
               </svg>
             </button>
+            {lightboxZoom > 1 && (
+              <span className="text-white/60 text-xs ml-2 hidden sm:inline">Drag to pan</span>
+            )}
           </div>
 
           {/* Navigation arrows */}
@@ -2061,12 +2140,27 @@ function ListingDetailPage() {
           <div 
             className="max-w-[90vw] max-h-[85vh] overflow-hidden flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
+            onDoubleClick={handleDoubleClick}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            style={{ 
+              cursor: lightboxZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+              userSelect: 'none'
+            }}
           >
             <img 
               src={galleryImages[activeImage]} 
               alt={l.title}
               className="max-w-full max-h-full object-contain transition-transform duration-300"
-              style={{ transform: `scale(${lightboxZoom})` }}
+              style={{ 
+                transform: `scale(${lightboxZoom}) translate(${panPosition.x / lightboxZoom}px, ${panPosition.y / lightboxZoom}px)`,
+                pointerEvents: 'none'
+              }}
               draggable={false}
             />
           </div>
