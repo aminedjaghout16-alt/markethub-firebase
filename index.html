@@ -1747,14 +1747,13 @@ function ListingDetailPage() {
 
   // Pan/drag handlers
   const handleMouseDown = (e) => {
-    if (lightboxZoom <= 1) return;
     e.preventDefault();
     setIsDragging(true);
     setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
   };
 
   const handleMouseMove = (e) => {
-    if (!isDragging || lightboxZoom <= 1) return;
+    if (!isDragging) return;
     e.preventDefault();
     setPanPosition({
       x: e.clientX - dragStart.x,
@@ -1777,14 +1776,14 @@ function ListingDetailPage() {
   };
 
   const handleTouchStart = (e) => {
-    if (lightboxZoom <= 1 || e.touches.length !== 1) return;
+    if (e.touches.length !== 1) return;
     setIsDragging(true);
     const touch = e.touches[0];
     setDragStart({ x: touch.clientX - panPosition.x, y: touch.clientY - panPosition.y });
   };
 
   const handleTouchMove = (e) => {
-    if (!isDragging || lightboxZoom <= 1 || e.touches.length !== 1) return;
+    if (!isDragging || e.touches.length !== 1) return;
     e.preventDefault();
     const touch = e.touches[0];
     setPanPosition({
@@ -2100,9 +2099,7 @@ function ListingDetailPage() {
                 <path d="M12 5v14M5 12h14"/>
               </svg>
             </button>
-            {lightboxZoom > 1 && (
-              <span className="text-white/60 text-xs ml-2 hidden sm:inline">Drag to pan</span>
-            )}
+            <span className="text-white/60 text-xs ml-2 hidden sm:inline">Drag to pan</span>
           </div>
 
           {/* Navigation arrows */}
@@ -2149,7 +2146,7 @@ function ListingDetailPage() {
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             style={{ 
-              cursor: lightboxZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+              cursor: isDragging ? 'grabbing' : 'grab',
               userSelect: 'none'
             }}
           >
